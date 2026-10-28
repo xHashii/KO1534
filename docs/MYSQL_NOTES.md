@@ -114,6 +114,7 @@ sections are no longer read — if they are still present they are ignored.
 |---|---|
 | schema/data/routine generation | generated, statically validated |
 | routine parameter counts vs C++ call sites | checked by `tools/check_call_sites.py` (52/52) |
+| `shared/database` type-check (g++ -fsyntax-only, stub headers) | passes — `tools/syntax_check_db_layer.sh` |
 | C++ build (VS2022, Win32) | **not verified** — needs Windows |
 | import into MySQL 8.4 | **not verified** — needs a server |
 | login / character / world round-trip with the client | **not verified** |

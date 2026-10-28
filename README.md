@@ -82,6 +82,7 @@ Files are applied in order (`mysql -u ko1534 -p KO1534 < file.sql`):
 python3 tools/sqlserver_to_mysql.py --routines-dir /tmp/ko/routines
 python3 tools/validate_mysql_migration.py     # static checks, no server needed
 python3 tools/check_call_sites.py             # C++ CALL vs procedure signatures
+tools/syntax_check_db_layer.sh                # type-checks shared/database on Linux
 ```
 
 Both validators must print `OK` before you import.
