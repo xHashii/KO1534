@@ -47,6 +47,9 @@ PROC_RE = re.compile(
     re.S | re.I,
 )
 PARAM_SPLIT_RE = re.compile(r",(?![^()]*\))")
+# A parameter declaration starts with its direction, so this also tells the
+# renderer where the OUT value has to be placed.
+PARAM_MODE_RE = re.compile(r"^\s*(OUT|INOUT|IN)\b", re.I)
 
 
 def split_args(argstr):
@@ -187,7 +190,7 @@ def scan_call_sites(root):
 
 
 def parse_procedures(root):
-    """Return {PROCNAME: param_count} from the ported .sql files."""
+    """Return {PROCNAME: (param_count, first_param_mode)} from the .sql files."""
     procs = {}
     mig = os.path.join(root, MIG_DIR)
     for fn in sorted(os.listdir(mig)):
@@ -199,11 +202,12 @@ def parse_procedures(root):
         for m in PROC_RE.finditer(text):
             name, params = m.group(1).upper(), m.group(2).strip()
             if not params:
-                procs[name] = 0
+                procs[name] = (0, "NONE")
                 continue
             parts = split_args(params)
             # A line starting with OUT/INOUT/IN is one parameter, never more.
-            procs[name] = len(parts)
+            mode = PARAM_MODE_RE.match(parts[0].strip())
+            procs[name] = (len(parts), (mode.group(1).upper() if mode else "NONE"))
     return procs
 
 
@@ -227,10 +231,20 @@ def main():
             missing.append("%s: called at %s but no MySQL definition"
                            % (name, ", ".join(sorted(w for _c, _o, w in variants))))
             continue
-        if procs[name] != expected:
+        param_count, first_mode = procs[name]
+        if param_count != expected:
             mismatch.append("%s: C++ sends %d parameters, MySQL defines %d (%s)"
-                            % (name, expected, procs[name],
+                            % (name, expected, param_count,
                                ", ".join(sorted(w for _c, _o, w in variants))))
+        elif any(has_out for _c, has_out, _w in variants) and first_mode not in ("OUT", "INOUT"):
+            # BuildStatement() renders "{? = CALL P(a)}" as CALL P(@ko_out0, a):
+            # the OUT variable becomes the first argument, so a procedure whose
+            # output parameter sits anywhere else is called with the arguments
+            # shifted and fails at run time ("Incorrect number of arguments").
+            missing.append(
+                "%s: called as {? = CALL ...} but its first parameter is %s, not OUT (%s)"
+                % (name, first_mode, ", ".join(sorted(w for _c, _o, w in variants)))
+            )
         else:
             ok += 1
 

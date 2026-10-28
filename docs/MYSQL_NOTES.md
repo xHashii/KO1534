@@ -189,6 +189,50 @@ Two fixes:
 `tools/dev_run.ps1` runs the statement above against the database before it
 starts anything, so the database half of registration is verified on every run.
 
+## The ODBC return-value placeholder is a real argument in MySQL
+
+The call sites were written for ODBC and still look like
+
+```cpp
+dbCommand->Execute(_T("{? = CALL ACCOUNT_LOGIN(?, ?)}"));
+```
+
+`BuildStatement()` turned the `{? = …}` part into a session variable —
+`SET @ko_out0 = NULL;` — but did not put that variable back **inside** the
+argument list, so what the server received was
+
+```sql
+SET @ko_out0 = NULL; CALL ACCOUNT_LOGIN('test', 'ABCDEF'); SELECT @ko_out0;
+```
+
+`ACCOUNT_LOGIN` is declared `(OUT p_result, IN p_accountID, IN p_passwd)`, so
+MySQL rejected the call:
+
+```
+Error: 42000
+Description: A statement in the batch failed. [Incorrect number of arguments
+for PROCEDURE KO1534.ACCOUNT_LOGIN; expected 3, got 2]
+```
+
+and, because the whole batch produced no result set, LogInServer reported
+`AUTH_NOT_FOUND` — "no such ID" for every account name, including the shipped
+`admin`. Auto-registration had never been reached even once.
+
+The fix is in `BuildStatement()`: the OUT variable is inserted as the first
+argument of the call, which is correct because every procedure called as
+`{? = CALL …}` declares its output parameter first (checked by
+`tools/check_call_sites.py`). `{CALL …}` statements are untouched.
+
+`tools/tests/run_tests.sh` now renders the real call sites and compares the
+statement text, so a misplaced or missing argument fails on Linux, before a
+Windows build:
+
+```
+=== test_statement_rendering
+  ok   OUT variable is the first argument
+  ok   no OUT variable and no trailing SELECT
+```
+
 ## Windows PowerShell and native stderr
 
 Every script in `tools\` sets `$ErrorActionPreference = "Stop"`. In Windows

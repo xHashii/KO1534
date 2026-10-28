@@ -350,6 +350,12 @@ Call site: `LogInServer/DBProcess.cpp:89`, reached from every login attempt
 used and the account exists from then on. The same name with a different
 password returns 3 (`AUTH_INVALID`).
 
+> Until the renderer fix described in `docs/MYSQL_NOTES.md` ("The ODBC
+> return-value placeholder is a real argument in MySQL") the call went out one
+> argument short and MySQL rejected it, which surfaced as "no such ID" for every
+> name. **A rebuild is required**: `tools\dev_run.ps1` does it for you.
+> `tools\tests\run_tests.sh` now checks the rendered text.
+
 A fresh account has no characters: pick a nation in the client and create one
 (`ACCOUNT_CHAR` holds three slots, `strCharID1..3`; `CREATE_CHARACTER` adds the
 `ACCOUNT_CHAR` row itself if it is missing).

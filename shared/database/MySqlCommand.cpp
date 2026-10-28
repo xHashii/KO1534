@@ -176,7 +176,14 @@ bool MySqlCommand::BuildStatement(const tstring & szSQL, std::string & outStatem
 				inner.erase(firstNonSpace, 1);
 		}
 
-		sql = inner;
+		// "{? = CALL P(?, ?)}" leaves a leading space and the closing brace a
+		// trailing one; drop both so the assembled statement has one space.
+		size_t firstText = inner.find_first_not_of(" \t\r\n");
+		size_t lastText = inner.find_last_not_of(" \t\r\n");
+
+		sql = (firstText == std::string::npos)
+			? std::string()
+			: inner.substr(firstText, lastText - firstText + 1);
 	}
 
 	size_t firstParamIndex = 0;
@@ -192,6 +199,54 @@ bool MySqlCommand::BuildStatement(const tstring & szSQL, std::string & outStatem
 
 		outputParams.push_back(m_params.begin()->second);
 		firstParamIndex = 1;
+
+		// MySQL has no procedure return value, so the value these call sites
+		// expect has to travel through an OUT parameter.  Every procedure
+		// called as "{? = CALL P(...)}" declares that parameter first, so the
+		// session variable goes in front of the argument list:
+		//     {? = CALL P(?, %d)}  ->  CALL P(@ko_out0, ?, <n>)
+		// Without this the call is one argument short and MySQL rejects it
+		// with "Incorrect number of arguments for PROCEDURE ...", which used
+		// to surface as "no such account" at the login screen.
+		size_t openParen = sql.find('(');
+		if (openParen == std::string::npos)
+		{
+			m_szError = _T("Statement expects a return value but has no argument list.");
+			return false;
+		}
+
+		size_t closeParen = std::string::npos;
+		int depth = 0;
+		for (size_t i = openParen; i < sql.length(); i++)
+		{
+			if (sql[i] == '(')
+			{
+				depth++;
+			}
+			else if (sql[i] == ')')
+			{
+				depth--;
+				if (depth == 0)
+				{
+					closeParen = i;
+					break;
+				}
+			}
+		}
+
+		if (closeParen == std::string::npos)
+		{
+			m_szError = _T("Statement expects a return value but its argument list is not closed.");
+			return false;
+		}
+
+		std::string var = "@ko_out" + std::to_string(m_params.begin()->first);
+		std::string arguments = sql.substr(openParen + 1, closeParen - openParen - 1);
+
+		if (arguments.find_first_not_of(" \t\r\n") == std::string::npos)
+			sql.insert(openParen + 1, var);
+		else
+			sql.insert(openParen + 1, var + ", ");
 	}
 
 	// ---- render the statement -------------------------------------------
