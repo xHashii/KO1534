@@ -29,7 +29,6 @@
     <ClCompile Include="Condition.cpp" />
     <ClCompile Include="database\MySqlCommand.cpp" />
     <ClCompile Include="database\MySqlConnection.cpp" />
-    <ClCompile Include="database\MySqlParameter.cpp" />
     <ClCompile Include="database\MySqlRecordset.cpp" />
     <ClCompile Include="ReferenceObject.cpp" />
     <ClCompile Include="RWLock.cpp" />
@@ -37,7 +36,6 @@
     <ClCompile Include="Condition.cpp" />
     <ClCompile Include="database\MySqlCommand.cpp" />
     <ClCompile Include="database\MySqlConnection.cpp" />
-    <ClCompile Include="database\MySqlParameter.cpp" />
     <ClCompile Include="database\MySqlRecordset.cpp" />
     <ClCompile Include="JvCryption.cpp" />
     <ClCompile Include="KOSocket.cpp" />
@@ -54,9 +52,6 @@
       <Filter>Database</Filter>
     </ClCompile>
     <ClCompile Include="database\MySqlConnection.cpp">
-      <Filter>Database</Filter>
-    </ClCompile>
-    <ClCompile Include="database\MySqlParameter.cpp">
       <Filter>Database</Filter>
     </ClCompile>
     <ClCompile Include="KOSocket.cpp">
@@ -125,9 +120,6 @@
       <Filter>Database</Filter>
     </ClCompile>
     <ClCompile Include="database\MySqlConnection.cpp">
-      <Filter>Database</Filter>
-    </ClCompile>
-    <ClCompile Include="database\MySqlParameter.cpp">
       <Filter>Database</Filter>
     </ClCompile>
     <ClCompile Include="database\MySqlRecordset.cpp">

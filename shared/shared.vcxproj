@@ -145,7 +145,6 @@
     <ClCompile Include="crc32.c" />
     <ClCompile Include="database\MySqlCommand.cpp" />
     <ClCompile Include="database\MySqlConnection.cpp" />
-    <ClCompile Include="database\MySqlParameter.cpp" />
     <ClCompile Include="database\MySqlRecordset.cpp" />
     <ClCompile Include="DebugUtils.cpp" />
     <ClCompile Include="globals.cpp" />
