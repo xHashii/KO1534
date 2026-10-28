@@ -323,16 +323,75 @@ def mysql_type(col, table):
     return out
 
 
+# --------------------------------------------------------------------------
+# Implicit defaults
+#
+# The SQL Server dump is full of "NOT NULL, no DEFAULT" columns, and several
+# server-side procedures insert partial rows - e.g. ACCOUNT_LOGIN creating a
+# TB_USER row with only (strAccountID, strPasswd), CREATE_KNIGHTS inserting
+# KNIGHTS without Gold/Points/Mark.  Those columns have no value there, so on
+# SQL Server the statement simply failed (error 515); under MySQL's
+# STRICT_ALL_TABLES it would fail the same way and the feature would stay
+# broken after the port.
+#
+# To keep NOT NULL (an UPDATE can still never store NULL) while letting the
+# server's partial INSERTs work as they clearly intend, every such column gets
+# an explicit neutral DEFAULT.  Binary/BLOB columns cannot carry a literal
+# default in InnoDB, so those become NULLable instead.
+# --------------------------------------------------------------------------
+ZERO_DEFAULTS = {
+    "TINYINT UNSIGNED": "0",
+    "SMALLINT": "0",
+    "INT": "0",
+    "BIGINT": "0",
+    "DOUBLE": "0",
+    "DECIMAL": "0",
+    "DATETIME": "'1970-01-01 00:00:00'",
+    "DATETIME(3)": "'1970-01-01 00:00:00.000'",
+    "DATE": "'1970-01-01'",
+}
+
+IMPLICIT_DEFAULTS = []      # report entries
+
+
+def implicit_default(table, name, sqltype):
+    """Return (new_sqltype, default_clause, switched_to_nullable)."""
+    base = sqltype.split("(")[0].strip().upper()
+
+    if base in ("BINARY", "VARBINARY", "LONGBLOB", "BLOB", "MEDIUMBLOB", "TEXT"):
+        return sqltype, None, True
+
+    key = sqltype.upper()
+    if key in ZERO_DEFAULTS:
+        return sqltype, ZERO_DEFAULTS[key], False
+    if base == "DATETIME":
+        return sqltype, "'1970-01-01 00:00:00'", False
+    if base in ("CHAR", "VARCHAR"):
+        return sqltype, "''", False
+    return sqltype, "0", False
+
+
 def emit_table(t):
     table = t["table"]
     lines = []
     for c in t["cols"]:
-        parts = ["  `%s`" % c["name"], mysql_type(c, table)]
-        if c["not_null"] or c["identity"]:
-            parts.append("NOT NULL")
-        else:
-            parts.append("NULL")
+        sqltype = mysql_type(c, table)
+        parts = ["  `%s`" % c["name"], sqltype]
         d = convert_default(c["default"])
+        not_null = c["not_null"] or c["identity"]
+
+        if c["not_null"] and not c["identity"] and not d:
+            new_type, default, nullable = implicit_default(table, c["name"], sqltype)
+            if nullable:
+                not_null = False
+                IMPLICIT_DEFAULTS.append("%s.%s (%s): NOT NULL -> NULL (no literal default possible)"
+                                         % (table, c["name"], sqltype))
+            else:
+                d = default
+                IMPLICIT_DEFAULTS.append("%s.%s (%s): NOT NULL DEFAULT %s added"
+                                         % (table, c["name"], sqltype, default))
+
+        parts.append("NOT NULL" if not_null else "NULL")
         if d:
             parts.append("DEFAULT %s" % d)
         lines.append(" ".join(parts))
@@ -599,6 +658,11 @@ def main():
     lines.append("")
     for (t, c), typ in BINARY_OVERRIDES.items():
         lines.append("* `%s`.`%s` -> %s (binary payload in a varchar column)" % (t, c, typ))
+    if IMPLICIT_DEFAULTS:
+        lines += ["", "## Implicit defaults (NOT NULL columns that had none)", ""]
+        for entry in IMPLICIT_DEFAULTS:
+            lines.append("* " + entry)
+
     lines += ["", "## Result", ""]
     if missing:
         lines.append("**MISMATCH:** " + ", ".join("%s (%d -> %d)" % (t, c, gen_counts.get(t, 0))

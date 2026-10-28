@@ -269,7 +269,16 @@ count, and the data file is structurally consistent with the schema.
 5. **Double free in the old code.** `AIServer` and `LogInServer` called
    `delete pError` on a `MySqlError *` owned by the connection; fixed while
    porting.
-6. **`SERVER_LIST` is a table the dump does not contain**, while the game server
+6. **`NOT NULL` columns without a default.** 1,036 of them. The server inserts
+   partial rows in several places (account auto-create in `ACCOUNT_LOGIN`, clan
+   creation in `CREATE_KNIGHTS`, mail in `MAIL_BOX_SEND`), which on SQL Server
+   failed with error 515 and would fail identically under
+   `STRICT_ALL_TABLES`. Those columns now carry an explicit neutral `DEFAULT`
+   (0 / '' / 1970-01-01); `KING_CANDIDACY_NOTICE_BOARD.strNotice` is the single
+   binary column that had to become nullable, because InnoDB cannot give a
+   `VARBINARY` a literal default. `NOT NULL` is otherwise preserved, so an
+   `UPDATE` still cannot store NULL. Full list: `migrations/mysql/REPORT.md`.
+7. **`SERVER_LIST` is a table the dump does not contain**, while the game server
    updates it on every king notice change. Reconstructed with the five columns
    the server actually touches.
 
