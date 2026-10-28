@@ -109,6 +109,21 @@ foreach ($ini in @("AIServer.ini", "GameServer.ini", "LogInServer.ini")) {
     }
 }
 
+# ---------------------------------------------------------------------------
+# 3b. Client DLL next to the executables (libmysql.dll / libmariadb.dll).
+#     Only when MYSQL_ROOT points at a client install; otherwise rely on PATH.
+# ---------------------------------------------------------------------------
+if ($env:MYSQL_ROOT) {
+    foreach ($dll in @("libmysql.dll", "libmariadb.dll")) {
+        $candidate = Join-Path $env:MYSQL_ROOT "bin\$dll"
+        if (-not (Test-Path $candidate)) { $candidate = Join-Path $env:MYSQL_ROOT "lib\$dll" }
+        if (Test-Path $candidate) {
+            Copy-Item $candidate (Join-Path $binDir $dll) -Force
+            Write-Host "Copied $dll next to the executables"
+        }
+    }
+}
+
 if ($NoLaunch) { return }
 
 # ---------------------------------------------------------------------------
