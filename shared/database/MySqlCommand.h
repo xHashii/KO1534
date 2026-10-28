@@ -22,14 +22,21 @@
 //  How the ODBC-isms are translated (no server-side prepare is used, which is
 //  why the original '?' placeholders can stay in the call sites):
 //
-//    "{? = CALL P(a, b)}"  ->  SET @ko_out = NULL; CALL P(a, b); SELECT @ko_out
-//    "{CALL P(a, b)}"      ->  CALL P(a, b)
+//    "{? = CALL P(a, b)}"     ->  SET @ko_out0 = NULL; CALL P(@ko_out0, a, b);
+//                                 SELECT @ko_out0
+//    "{CALL P(?, ?)}" with OUT  ->  SET @ko_out1 = NULL; CALL P(a, @ko_out1);
+//                                 SELECT @ko_out1
+//    "{CALL P(a, b)}"           ->  CALL P(a, b)
 //
 //  Each '?' is replaced by an escaped literal built from the bound parameter,
-//  in AddParameter order (the leading output parameter only appears as the
-//  session variable).  After execution the trailing "SELECT @ko_out" result is
-//  consumed and written back into the output parameter, and any result set the
-//  procedure itself returned stays buffered for MoveNext()/Fetch*().
+//  in AddParameter order; a parameter bound as SQL_PARAM_OUTPUT becomes a
+//  session variable instead.  After execution the trailing "SELECT @ko_out..."
+//  result is consumed and written back into the bound variables, and any result
+//  set the procedure itself returned stays buffered for MoveNext()/Fetch*().
+//
+//  Both output forms occur in KO1534: the usual "{? = CALL ...}" return value
+//  and LOAD_PREMIUM_SERVICE_USER(?, OUT, OUT), which has no return value but
+//  two output parameters inside the argument list.
 //
 //  Everything is buffered client side (mysql_store_result), so the fetch
 //  semantics the call sites rely on - "hasData() then Fetch*(1..n)" - are the
@@ -128,10 +135,10 @@ private:
 	// Renders the statement, substituting bound parameter literals for '?'
 	// and handling the "{? = CALL ...}" escape.
 	bool BuildStatement(const tstring & szSQL, std::string & outStatement,
-						MySqlParameter ** ppOutputParam);
+						std::vector<MySqlParameter *> & outputParams);
 	// Drains every result set the server produced.  Data result sets are kept
 	// (and chained) for MoveNext(); the trailing OUT value is written back.
-	bool CollectResults(MySqlParameter * pOutputParam);
+	bool CollectResults(const std::vector<MySqlParameter *> & outputParams);
 	void ClearResults();
 
 	const char * FieldAt(int pos, unsigned long & length) const;

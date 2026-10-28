@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <algorithm>
 #include <mysql.h>
 #include "MySqlConnection.h"
 
@@ -150,23 +151,18 @@ bool MySqlCommand::CheckConnection()
 }
 
 bool MySqlCommand::BuildStatement(const tstring & szSQL, std::string & outStatement,
-								  MySqlParameter ** ppOutputParam)
+								  std::vector<MySqlParameter *> & outputParams)
 {
-	*ppOutputParam = nullptr;
+	outputParams.clear();
 
 	std::string sql(szSQL);
-	size_t openBrace = std::string::npos;
-	size_t closeBrace = std::string::npos;
 
-	// Strip the ODBC escape braces, remembering whether the first parameter is
-	// the statement's return value ("{? = CALL ...}").
+	// ---- strip the ODBC escape braces -----------------------------------
 	bool hasReturnValue = false;
-	size_t start = sql.find('{');
-	if (start != std::string::npos)
+	size_t openBrace = sql.find('{');
+	if (openBrace != std::string::npos)
 	{
-		openBrace = start;
-		closeBrace = sql.rfind('}');
-
+		size_t closeBrace = sql.rfind('}');
 		std::string inner = sql.substr(openBrace + 1,
 			(closeBrace == std::string::npos ? sql.length() : closeBrace) - openBrace - 1);
 
@@ -183,24 +179,28 @@ bool MySqlCommand::BuildStatement(const tstring & szSQL, std::string & outStatem
 		sql = inner;
 	}
 
+	size_t firstParamIndex = 0;
 	if (hasReturnValue)
 	{
+		// The return value is the first bound parameter and never appears as a
+		// '?' in the rendered argument list.
 		if (m_params.empty() || !m_params.begin()->second->IsOutput())
 		{
 			m_szError = _T("Statement expects a return value but no output parameter was bound first.");
 			return false;
 		}
 
-		*ppOutputParam = m_params.begin()->second;
+		outputParams.push_back(m_params.begin()->second);
+		firstParamIndex = 1;
 	}
 
-	// Walk the statement and substitute the placeholders.
+	// ---- render the statement -------------------------------------------
 	std::string rendered;
 	rendered.reserve(sql.length() + 64);
 
-	auto paramItr = m_params.begin();
-	if (hasReturnValue && paramItr != m_params.end())
-		++paramItr;                 // parameter 0 is the OUT value
+	std::vector<std::pair<size_t, MySqlParameter *> > ordered(m_params.begin(), m_params.end());
+	size_t nextParam = firstParamIndex;
+	std::string sets;
 
 	for (char ch : sql)
 	{
@@ -210,14 +210,28 @@ bool MySqlCommand::BuildStatement(const tstring & szSQL, std::string & outStatem
 			continue;
 		}
 
-		if (paramItr == m_params.end())
+		if (nextParam >= ordered.size())
 		{
 			m_szError = _T("More placeholders than bound parameters.");
 			return false;
 		}
 
-		MySqlParameter * pParam = paramItr->second;
-		++paramItr;
+		size_t paramIndex = ordered[nextParam].first;
+		MySqlParameter * pParam = ordered[nextParam].second;
+		++nextParam;
+
+		// Output parameters become session variables and are read back from a
+		// trailing SELECT once the statement has run.
+		if (pParam->IsOutput())
+		{
+			std::string var = "@ko_out" + std::to_string(paramIndex);
+			rendered += var;
+
+			if (std::find(outputParams.begin(), outputParams.end(), pParam) == outputParams.end())
+				outputParams.push_back(pParam);
+
+			continue;
+		}
 
 		SQLSMALLINT ctype = pParam->GetCDataType();
 		SQLPOINTER  address = pParam->GetAddress();
@@ -255,17 +269,39 @@ bool MySqlCommand::BuildStatement(const tstring & szSQL, std::string & outStatem
 		}
 	}
 
-	if (hasReturnValue)
+	// ---- assemble --------------------------------------------------------
+	outStatement.clear();
+
+	for (auto itr = m_params.begin(); itr != m_params.end(); itr++)
 	{
-		static const char * prefix = "SET @ko_return_value = NULL; ";
-		static const char * suffix = "; SELECT @ko_return_value";
-		outStatement = prefix;
-		outStatement += rendered;
-		outStatement += suffix;
+		if (!itr->second->IsOutput())
+			continue;
+
+		outStatement += "SET @ko_out";
+		outStatement += std::to_string(itr->first);
+		outStatement += " = NULL; ";
 	}
-	else
+
+	outStatement += rendered;
+
+	if (!outputParams.empty())
 	{
-		outStatement = rendered;
+		outStatement += "; SELECT ";
+		for (size_t i = 0; i < outputParams.size(); i++)
+		{
+			if (i > 0)
+				outStatement += ", ";
+
+			for (auto itr = m_params.begin(); itr != m_params.end(); itr++)
+			{
+				if (itr->second == outputParams[i])
+				{
+					outStatement += "@ko_out";
+					outStatement += std::to_string(itr->first);
+					break;
+				}
+			}
+		}
 	}
 
 	return true;
@@ -283,7 +319,7 @@ bool MySqlCommand::Prepare(const tstring & szSQL)
 	if (!CheckConnection())
 		return false;
 
-	MySqlParameter * pOutputParam = nullptr;
+	std::vector<MySqlParameter *> outputParams;
 	std::string statement;
 
 	MYSQL * handle = m_connection->m_handle;
@@ -297,7 +333,7 @@ bool MySqlCommand::Prepare(const tstring & szSQL)
 	TRACE((szSQL + _T("\n")).c_str());
 #endif
 
-	if (!BuildStatement(szSQL, statement, &pOutputParam))
+	if (!BuildStatement(szSQL, statement, outputParams))
 		return false;
 
 #ifdef USE_SQL_TRACE
@@ -317,7 +353,7 @@ bool MySqlCommand::Prepare(const tstring & szSQL)
 
 	m_bOpen = true;
 
-	if (!CollectResults(pOutputParam))
+	if (!CollectResults(outputParams))
 	{
 		Close();
 		return false;
@@ -331,7 +367,7 @@ bool MySqlCommand::Prepare(const tstring & szSQL)
 	return true;
 }
 
-bool MySqlCommand::CollectResults(MySqlParameter * pOutputParam)
+bool MySqlCommand::CollectResults(const std::vector<MySqlParameter *> & outputParams)
 {
 	MYSQL * handle = m_connection->m_handle;
 
@@ -354,30 +390,41 @@ bool MySqlCommand::CollectResults(MySqlParameter * pOutputParam)
 		}
 	} while (mysql_next_result(handle) == 0);
 
-	// The trailing "SELECT @ko_return_value" is the output parameter, not data
-	// for the caller: consume it and write it back into the bound variable.
-	if (pOutputParam != nullptr)
+	// The trailing "SELECT @ko_out..." is the output parameter block, not data
+	// for the caller: consume it and write the values back into the bound
+	// variables (in binding order, one column each).
+	if (!outputParams.empty())
 	{
 		if (!m_resultSets.empty())
 		{
 			ResultSet & last = m_resultSets.back();
 			MYSQL_ROW row = mysql_fetch_row((MYSQL_RES *)last.handle);
 
-			if (row != nullptr && row[0] != nullptr)
+			if (row != nullptr)
 			{
-				int64 value = _strtoi64(row[0], nullptr, 10);
-
-				switch (pOutputParam->GetCDataType())
+				for (size_t i = 0; i < outputParams.size(); i++)
 				{
-				case SQL_C_UTINYINT: *(uint8  *)pOutputParam->GetAddress() = (uint8)value;  break;
-				case SQL_C_STINYINT: *(int8   *)pOutputParam->GetAddress() = (int8)value;   break;
-				case SQL_C_USHORT:   *(uint16 *)pOutputParam->GetAddress() = (uint16)value; break;
-				case SQL_C_SSHORT:   *(int16  *)pOutputParam->GetAddress() = (int16)value;  break;
-				case SQL_C_ULONG:    *(uint32 *)pOutputParam->GetAddress() = (uint32)value; break;
-				case SQL_C_SLONG:    *(int32  *)pOutputParam->GetAddress() = (int32)value;  break;
-				case SQL_C_UBIGINT:  *(uint64 *)pOutputParam->GetAddress() = (uint64)value; break;
-				case SQL_C_SBIGINT:  *(int64  *)pOutputParam->GetAddress() = value;         break;
-				default: break;
+					if (row[i] == nullptr)
+						continue;
+
+					MySqlParameter * pParam = outputParams[i];
+					if (pParam->GetAddress() == nullptr)
+						continue;
+
+					int64 value = _strtoi64(row[i], nullptr, 10);
+
+					switch (pParam->GetCDataType())
+					{
+					case SQL_C_UTINYINT: *(uint8  *)pParam->GetAddress() = (uint8)value;  break;
+					case SQL_C_STINYINT: *(int8   *)pParam->GetAddress() = (int8)value;   break;
+					case SQL_C_USHORT:   *(uint16 *)pParam->GetAddress() = (uint16)value; break;
+					case SQL_C_SSHORT:   *(int16  *)pParam->GetAddress() = (int16)value;  break;
+					case SQL_C_ULONG:    *(uint32 *)pParam->GetAddress() = (uint32)value; break;
+					case SQL_C_SLONG:    *(int32  *)pParam->GetAddress() = (int32)value;  break;
+					case SQL_C_UBIGINT:  *(uint64 *)pParam->GetAddress() = (uint64)value; break;
+					case SQL_C_SBIGINT:  *(int64  *)pParam->GetAddress() = value;         break;
+					default: break;
+					}
 				}
 			}
 
