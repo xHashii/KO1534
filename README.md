@@ -156,6 +156,49 @@ powershell -ExecutionPolicy Bypass -File tools\setup_database.ps1
 
 `tools/setup_database.sh` is the same for Linux/macOS. Neither needs Python.
 
+### Where the servers look for files
+
+Every path below is relative to the **working directory of the process**, not to
+the folder the `.exe` is in. The repository's `data\` is that directory:
+
+```
+data\                       <- start all three servers here
+├── GameServer.ini           read as ./GameServer.ini
+├── LogInServer.ini          read as ./LogInServer.ini
+├── AIServer.ini             read as ./AIServer.ini
+├── Map\                     read as ./map/  (case-insensitive on Windows)
+│   ├── *.smd                one per zone, named by ZONE_INFO.strZoneName
+│   ├── *.aievt              room-event script per ZONE_INFO.RoomEvent
+│   └── WarpGateEditor.exe   shipped with the original data, unused at runtime
+├── Quests\                  read as ./Quests/
+│   └── *.lua                named by QUEST_HELPER.strLuaFilename
+├── Logs\                    created on startup
+├── Notice.txt               optional, missing is not an error
+└── Notice_up.txt            optional
+```
+
+`config\*.ini` is a *copy source* — the servers never read `config\`, they read
+`./<name>.ini`. `tools\dev_run.ps1` copies the three files into `data\` for you
+and refuses to launch if `Map\` or `Quests\` are missing.
+
+Which server needs what:
+
+| file/folder | GameServer | LogInServer | AIServer |
+|---|---|---|---|
+| `GameServer.ini` | yes | – | – |
+| `LogInServer.ini` | – | yes | – |
+| `AIServer.ini` | – | – | yes |
+| `Map\*.smd` | yes | – | yes |
+| `Map\*.aievt` | – | – | yes |
+| `Quests\*.lua` | yes | – | – |
+
+Verified against the database dump: all 30 rows of `ZONE_INFO` have their
+`.smd` present in `data\Map`, and the one zone with a room event (61) has
+`61.aievt`. Two quest scripts named by `QUEST_HELPER` are absent from
+`data\Quests` (`14434_highprist.lua`, `21611_delaga.lua` — `21610_delaga.lua`
+exists); those NPCs log "Could not compile Lua script" when used, and nothing
+else is affected.
+
 ### Both steps together
 
 ```powershell

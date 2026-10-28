@@ -152,6 +152,31 @@ if ($env:MYSQL_ROOT) {
     }
 }
 
+# ---------------------------------------------------------------------------
+# 3c. Runtime layout: the servers resolve map/, Quests/ and their .ini files
+#     relative to the *working directory*, not to the .exe.
+# ---------------------------------------------------------------------------
+$missing = @()
+foreach ($required in @("GameServer.ini", "LogInServer.ini", "AIServer.ini", "Map", "Quests")) {
+    if (-not (Test-Path (Join-Path $dataDir $required))) { $missing += $required }
+}
+if ($missing) {
+    throw ("$dataDir is missing: " + ($missing -join ", ") + "`n" +
+           "The servers read ./map/, ./Quests/ and their .ini files from the working directory.`n" +
+           "Expected layout:`n" +
+           "    data\GameServer.ini  LogInServer.ini  AIServer.ini`n" +
+           "    data\Map\*.smd      (30 zones in ZONE_INFO)`n" +
+           "    data\Quests\*.lua    (script for each quest NPC)`n" +
+           "Run: git status   (Map/ and Quests/ are tracked; only the .ini copies are new)")
+}
+
+$mapCount = (Get-ChildItem (Join-Path $dataDir "Map") -Filter *.smd -ErrorAction SilentlyContinue).Count
+$questCount = (Get-ChildItem (Join-Path $dataDir "Quests") -Filter *.lua -ErrorAction SilentlyContinue).Count
+Write-Host "Working directory: $dataDir"
+Write-Host ("  Map\    {0} .smd, {1} .aievt" -f $mapCount,
+    (Get-ChildItem (Join-Path $dataDir "Map") -Filter *.aievt -ErrorAction SilentlyContinue).Count)
+Write-Host ("  Quests\ {0} .lua" -f $questCount)
+
 if ($NoLaunch) { return }
 
 # ---------------------------------------------------------------------------
