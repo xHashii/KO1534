@@ -5,8 +5,12 @@
 #  Type-checks shared/database/*.cpp on Linux with g++ against the stub headers
 #  in tools/cxx_shim (a minimal Windows/PCH stand-in and a fake mysql.h).
 #
-#  WHAT THIS PROVES: the new MySQL client layer is syntactically valid C++17 and
-#  its own declarations/definitions are consistent.
+#  Compiles at -std=c++14: the projects do not set /std:, so their language
+#  level is C++14 and constructs such as "if constexpr" are non-standard there
+#  (MSVC warns C4984).  Catching that here is cheaper than in a Windows build.
+#
+#  WHAT THIS PROVES: the MySQL client layer is valid C++14, and its own
+#  declarations and definitions are consistent.
 #  WHAT IT DOES NOT PROVE: that it compiles with MSVC (Win32, v143), links
 #  against the real libmysql.lib, or works against a real server. Those still
 #  need a Windows build - see README.
@@ -68,7 +72,7 @@ cd "$WORK" || exit 1
 status=0
 for f in MySqlCommand.cpp MySqlConnection.cpp schema_check_tu.cpp; do
 	echo "checking $f"
-	if ! g++ -std=c++17 -Wall -Wextra -Wno-unused-parameter -fsyntax-only \
+	if ! g++ -std=c++14 -Wall -Wextra -Wno-unused-parameter -fsyntax-only \
 			-I. -Ishim "$f"; then
 		status=1
 	fi

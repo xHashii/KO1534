@@ -1,5 +1,10 @@
 #pragma once
 
+// _USER_RANKING below holds a CUser*, and this header is included by both
+// servers (the AI server compiles some GameServer sources too), so the class
+// has to be known here rather than by include order.
+class CUser;
+
 // Classes
 #define KARUWARRIOR      101  // Beginner Karus Warrior
 #define KARUROGUE      102  // Beginner Karus Rogue

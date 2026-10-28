@@ -915,7 +915,8 @@ void CUser::SpecialItemExchange(Packet & pkt)
 				{
 					uint8 bRandArray[10000];
 					memset(&bRandArray, 0, sizeof(bRandArray)); 
-					uint16 sExchangeCount[ITEMS_IN_EXCHANGE_GROUP];
+					// uint32, to match sExchangeItemCount (see ItemHandler.cpp).
+					uint32 sExchangeCount[ITEMS_IN_EXCHANGE_GROUP];
 					memcpy(&sExchangeCount, &pExchange->sExchangeItemCount, sizeof(pExchange->sExchangeItemCount));
 
 					int offset = 0;

@@ -95,6 +95,73 @@ def check_project(path, project_dir):
                     % (name, condition or "<no condition>"))
 
 
+# Marker macros the shared headers switch on.  A project that compiles those
+# headers must define the right one; AIServer defining AISERVER instead of
+# AI_SERVER made every shared header take the GameServer path, which showed up
+# as 45 "cannot convert C3DMap* to MAP*" errors in one build.
+MARKERS = ("GAMESERVER", "AI_SERVER", "LOGINSERVER")
+
+MARKER_EXPECTED = {
+    "proj-GameServer.vcxproj": {"GAMESERVER"},
+    "proj-AIServer.vcxproj": {"AI_SERVER"},
+}
+
+
+def defined_markers(project_path):
+    try:
+        root = ET.parse(project_path).getroot()
+    except ET.ParseError:
+        return set()
+    markers = set()
+    for group in root.iter(NS + "ItemDefinitionGroup"):
+        cl = group.find(NS + "ClCompile")
+        if cl is None:
+            continue
+        text = cl.findtext(NS + "PreprocessorDefinitions") or ""
+        for token in text.split(";"):
+            if token.strip() in MARKERS:
+                markers.add(token.strip())
+    return markers
+
+
+def check_markers(projects):
+    used = set()
+    marker_re = re.compile(r"(?:defined\s*\(\s*|ifdef\s+|ifndef\s+)([A-Z_][A-Z_0-9]*)")
+    for folder in ("shared", "GameServer", "AIServer", "LogInServer"):
+        base = os.path.join(os.path.dirname(projects[0][1]), folder) \
+            if projects else None
+        if not base or not os.path.isdir(base):
+            continue
+        for name in os.listdir(base):
+            if not name.endswith((".h", ".cpp", ".inl")):
+                continue
+            text = open(os.path.join(base, name), encoding="latin-1").read()
+            for m in marker_re.finditer(text):
+                if m.group(1) in MARKERS:
+                    used.add(m.group(1))
+
+    defined_anywhere = set()
+    for name, path in projects:
+        markers = defined_markers(path)
+        defined_anywhere |= markers
+        expected = MARKER_EXPECTED.get(name)
+        if expected:
+            missing = expected - markers
+            if missing:
+                problem("%s compiles shared headers that switch on %s, but defines %s"
+                        % (name, sorted(missing)[0],
+                           ", ".join(sorted(markers)) if markers else "no such marker"))
+
+    dead = used - defined_anywhere
+    if dead:
+        problem("no project defines %s, so those #if branches are dead code"
+                % ", ".join(sorted(dead)))
+
+    stats = ", ".join("%s=%s" % (name, sorted(defined_markers(path)) or "-")
+                      for name, path in projects)
+    print("markers  : " + stats)
+
+
 def main(argv):
     root_dir = os.path.abspath(argv[0]) if argv else os.path.abspath(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
@@ -107,9 +174,16 @@ def main(argv):
         print("no .sln found in", root_dir)
         return 1
 
-    projects = read_solution(solution)
+    projects = []
+    for rel in read_solution(solution):
+        full = os.path.join(root_dir, rel.replace("\\", "/"))
+        if os.path.exists(full):
+            projects.append((os.path.basename(full), full))
+
     print("solution : %s" % os.path.basename(solution))
-    for rel in projects:
+    check_markers(projects)
+
+    for rel in read_solution(solution):
         full = os.path.join(root_dir, rel.replace("\\", "/"))
         if not os.path.exists(full):
             problem("%s: project \"%s\" does not exist"

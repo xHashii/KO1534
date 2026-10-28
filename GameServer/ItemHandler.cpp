@@ -1141,7 +1141,9 @@ bool CUser::RunSelectExchange(int nExchangeID, uint32 Count)
 		memset(&bRandArray, 0, sizeof(bRandArray)); 
 
 		// Copy the counts, as we're going to adjust them locally.
-		uint16 sExchangeCount[ITEMS_IN_EXCHANGE_GROUP];
+		// uint32, to match sExchangeItemCount: copying 20 bytes into a
+		// uint16[5] overran the stack buffer (C4789).
+		uint32 sExchangeCount[ITEMS_IN_EXCHANGE_GROUP];
 		memcpy(&sExchangeCount, &pExchange->sExchangeItemCount, sizeof(pExchange->sExchangeItemCount));
 
 		// Build array of exchange item slots (0-4)

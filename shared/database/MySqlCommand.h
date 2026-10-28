@@ -69,28 +69,17 @@ public:
 	void AddParameter(SQLSMALLINT paramType, const char * value, SQLLEN maxLength,
 					  SQLSMALLINT sqlDatatype = SQL_CHAR);
 
-	// Renders one bound value into the statement.  The C type is derived from
-	// the static type of the bound variable so call sites stay as they were.
+	// The C type of a bound variable, derived from its static type so that the
+	// call sites look exactly as they did with ODBC.
+	//
+	// Written as explicit specialisations rather than "if constexpr": the
+	// projects build as C++14 (no /std:c++17), where "if constexpr" is a
+	// non-standard extension (MSVC warns C4984 about it).  An unsupported type
+	// is a compile error here instead of a silently wrong literal.
+	template <typename T> struct CTypeTraits;
+
 	template <typename T>
-	static SQLSMALLINT CTypeOf()
-	{
-		if constexpr (std::is_floating_point_v<T>)
-			return sizeof(T) == 4 ? SQL_C_FLOAT : SQL_C_DOUBLE;
-		else if constexpr (std::is_signed_v<T>)
-		{
-			if (sizeof(T) == 1) return SQL_C_STINYINT;
-			if (sizeof(T) == 2) return SQL_C_SSHORT;
-			if (sizeof(T) == 4) return SQL_C_SLONG;
-			return SQL_C_SBIGINT;
-		}
-		else
-		{
-			if (sizeof(T) == 1) return SQL_C_UTINYINT;
-			if (sizeof(T) == 2) return SQL_C_USHORT;
-			if (sizeof(T) == 4) return SQL_C_ULONG;
-			return SQL_C_UBIGINT;
-		}
-	}
+	static SQLSMALLINT CTypeOf() { return CTypeTraits<T>::Value(); }
 
 	// ---- fetching ---------------------------------------------------------
 #define ADD_DB_PARAMETER(name, type, sqlType)         \
@@ -163,6 +152,18 @@ private:
 	void * m_row;                   // convenience: current MYSQL_ROW
 	unsigned long * m_lengths;
 };
+
+// ---- parameter C types (see CTypeTraits in the class) ----------------------
+template <> struct MySqlCommand::CTypeTraits<uint8>  { static SQLSMALLINT Value() { return SQL_C_UTINYINT; } };
+template <> struct MySqlCommand::CTypeTraits<int8>   { static SQLSMALLINT Value() { return SQL_C_STINYINT; } };
+template <> struct MySqlCommand::CTypeTraits<uint16> { static SQLSMALLINT Value() { return SQL_C_USHORT; } };
+template <> struct MySqlCommand::CTypeTraits<int16>  { static SQLSMALLINT Value() { return SQL_C_SSHORT; } };
+template <> struct MySqlCommand::CTypeTraits<uint32> { static SQLSMALLINT Value() { return SQL_C_ULONG; } };
+template <> struct MySqlCommand::CTypeTraits<int32>  { static SQLSMALLINT Value() { return SQL_C_SLONG; } };
+template <> struct MySqlCommand::CTypeTraits<uint64> { static SQLSMALLINT Value() { return SQL_C_UBIGINT; } };
+template <> struct MySqlCommand::CTypeTraits<int64>  { static SQLSMALLINT Value() { return SQL_C_SBIGINT; } };
+template <> struct MySqlCommand::CTypeTraits<float>  { static SQLSMALLINT Value() { return SQL_C_FLOAT; } };
+template <> struct MySqlCommand::CTypeTraits<double> { static SQLSMALLINT Value() { return SQL_C_DOUBLE; } };
 
 template <typename T>
 void MySqlCommand::AddParameter(SQLSMALLINT paramType, T * value, SQLLEN maxLength)

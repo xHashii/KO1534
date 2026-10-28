@@ -25,6 +25,7 @@
 #include "../shared/database/ServerResourceSet.h"
 #include "Region.h"
 #include "../shared/Ini.h"
+#include "../shared/database/DbConfigReader.h"
 #include "../shared/packets.h"
 #include "../shared/DateTime.h"
 
@@ -846,9 +847,9 @@ MAP * CServerDlg::GetZoneByID(int zonenumber)
 void CServerDlg::GetServerInfoIni()
 {
 	CIni ini("./AIServer.ini");
-	// The AI server does not query the database itself (it receives its map
-	// data from the game server), but the settings are read and validated so a
-	// copy/pasted configuration cannot go unnoticed.
+	// The AI server reads the magic/make-item tables and the zone list from
+	// the world database itself (see GetMagicTableData / the zone load that
+	// follows), so it needs the same [DATABASE] section as the game server.
 	m_dbConfig = ReadDatabaseConfig(ini, "DATABASE");
 
 	m_AIServerPort = ini.GetInt("SETTINGS","PORT", 10020);
