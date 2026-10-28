@@ -19,10 +19,15 @@
 #include <string>
 #include <cstdlib>
 
-// 001_schema.sql creates 104 tables, 003..007 create 118 routines.  Bumping
-// these numbers is part of adding a table or a routine to the migration.
-static const int kExpectedSchemaTables  = 104;
-static const int kExpectedSchemaRoutines = 118;
+// A complete import is exactly this many objects:
+//   105 base tables  - 104 in 001_schema.sql + SERVER_LIST in 005_reconstructed.sql
+//    65 routines     - 10 in 003, 21 in 004, 3 in 005, 18 in 006, 13 in 007
+// (118 was the number of routines in the SQL Server dump, many unused; 65 is
+// what the migration actually creates.)  Bumping these numbers is part of
+// adding a table or a routine - tools/validate_mysql_migration.py fails when
+// they drift apart from the migration files.
+static const int kExpectedSchemaTables   = 105;
+static const int kExpectedSchemaRoutines = 65;
 
 // Scalar COUNT(*) result, or -1 when the query itself fails (e.g. the schema
 // does not exist, so DATABASE() has no TB_USER).

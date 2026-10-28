@@ -158,6 +158,7 @@ starts MySQL, waits until the schema is actually imported, copies
 | file | contents |
 |---|---|
 | `migrations/mysql/001_schema.sql` | 104 tables (types, collation, keys) |
+| `migrations/mysql/005_reconstructed.sql` | the reconstructed objects **and** `SERVER_LIST` (the 105th base table) |
 | `migrations/mysql/002_data.sql.gz` | 171,445 rows, gzipped (2.0 MB) |
 | `migrations/mysql/003_functions.sql` | 10 functions + `ACCOUNT_CHAR_VIEW` |
 | `migrations/mysql/004_procedures.sql` | login / character / session procedures |

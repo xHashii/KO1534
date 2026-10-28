@@ -91,7 +91,7 @@ try {
     $probe = "SELECT CONCAT((SELECT COUNT(*) FROM information_schema.TABLES " +
              "WHERE TABLE_SCHEMA='$dbName' AND TABLE_TYPE='BASE TABLE'), '/', " +
              "(SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA='$dbName'));"
-    $expected = "104/118"
+    $expected = "105/65"   # base tables / routines of a complete import
 
     Write-Host "Waiting for the schema (first run imports the data: 1-3 minutes)..."
     $deadline = (Get-Date).AddMinutes(10)

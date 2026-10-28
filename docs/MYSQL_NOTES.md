@@ -117,7 +117,10 @@ sections are no longer read — if they are still present they are ignored.
 | `shared/database` type-check (g++ -fsyntax-only, stub headers) | passes — `tools/syntax_check_db_layer.sh` |
 | `002_data.sql.gz` reproducible (same sha256 on every run) | verified |
 | gzip round-trip equals the generated 143 MB SQL | verified (byte count + sha256) |
-| `docker-compose.yml` parses as YAML, mounts and env as intended | checked, **not run** |
+| `docker-compose.yml` parses as YAML, mounts and env as intended | checked |
+| full import into MySQL 8.4 by the container entrypoint | **verified on a developer machine**: 105 tables, 65 routines (after fixing the CASE syntax error in 006) |
+| row data imported (002_data.sql.gz) | implied by the above — 003..007 only run after 002 succeeds |
+| non-Docker setup scripts (`setup_database.ps1` / `.sh`) | **not run** |
 | C++ build (VS2022, Win32) | **not verified** — needs Windows |
 | import into MySQL 8.4 (`docker compose up -d` or the setup scripts) | **not verified** — no MySQL/Docker in this environment |
 | startup schema check (`shared/database/SchemaCheck.h`) | type-checks, **not compiled by MSVC** |

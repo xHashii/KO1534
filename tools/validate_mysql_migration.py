@@ -326,6 +326,55 @@ def validate_routines(path):
     stats[os.path.basename(path)] = len(created)
 
 
+def check_expected_counts():
+    """The hard-coded object counts must match the migration files.
+
+    shared/database/SchemaCheck.h refuses to start the servers unless the
+    database holds kExpectedSchemaTables tables and kExpectedSchemaRoutines
+    routines, and tools/dev_run.ps1 waits for the same pair.  Those numbers are
+    hand-written, so they are verified here instead of being discovered at
+    runtime - a stale number means the servers refuse to start against a
+    perfectly good database.
+    """
+    root = os.path.join(MIG, "..", "..")
+    tables = set()
+    for name in ("001_schema.sql", "005_reconstructed.sql"):
+        path = os.path.join(MIG, name)
+        if os.path.exists(path):
+            text = open(path, encoding="latin-1").read()
+            tables.update(re.findall(r"CREATE TABLE (?:IF NOT EXISTS )?`([^`]+)`", text))
+
+    routines = 0
+    for name in sorted(os.listdir(MIG)):
+        if name.endswith(".sql") and name[0].isdigit() and name[:3] >= "003":
+            text = open(os.path.join(MIG, name), encoding="latin-1").read()
+            routines += len(re.findall(
+                r"CREATE\s+(?:DEFINER\S+\s+)?(?:PROCEDURE|FUNCTION)\s+`", text))
+
+    header = os.path.join(root, "shared", "database", "SchemaCheck.h")
+    if os.path.exists(header):
+        text = open(header, encoding="utf-8").read()
+        m_tables = re.search(r"kExpectedSchemaTables\s*=\s*(\d+)", text)
+        m_routines = re.search(r"kExpectedSchemaRoutines\s*=\s*(\d+)", text)
+        if m_tables and int(m_tables.group(1)) != len(tables):
+            err("SchemaCheck.h expects %s tables, the migration creates %d"
+                % (m_tables.group(1), len(tables)))
+        if m_routines and int(m_routines.group(1)) != routines:
+            err("SchemaCheck.h expects %s routines, the migration creates %d"
+                % (m_routines.group(1), routines))
+
+    script = os.path.join(root, "tools", "dev_run.ps1")
+    if os.path.exists(script):
+        text = open(script, encoding="utf-8").read()
+        m = re.search(r"\$expected\s*=\s*\"(\d+)/(\d+)\"", text)
+        if m and (int(m.group(1)), int(m.group(2))) != (len(tables), routines):
+            err("dev_run.ps1 waits for %s/%s, the migration creates %d/%d"
+                % (m.group(1), m.group(2), len(tables), routines))
+
+    stats["expected tables"] = len(tables)
+    stats["expected routines"] = routines
+
+
 def main():
     need = ["001_schema.sql"]
     for n in need:
@@ -351,6 +400,8 @@ def main():
     for n in sorted(f for f in os.listdir(MIG)
                     if f.endswith(".sql") and f[0].isdigit() and f[:3] >= "003"):
         validate_routines(os.path.join(MIG, n))
+
+    check_expected_counts()
 
     # Table references inside routines (catches typos the schema check cannot).
     known = {t.upper() for t in schema}
