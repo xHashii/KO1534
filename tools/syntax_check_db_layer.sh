@@ -52,8 +52,27 @@ cat > schema_check_tu.cpp <<'EOF'
 #include "SchemaCheck.h"
 #include <cstdio>
 
+// One bind per supported scalar type.  A type the command layer cannot map is
+// a compile error here, on Linux, instead of a C2027 in a Windows build (that
+// is how 'char' - bound by DBAgent.cpp for the skill blob - slipped through).
+#define BIND(type) do { type v = 0; cmd->AddParameter(SQL_PARAM_INPUT, &v); } while (0)
+
 int CheckSchema(MySqlConnection & connection, const MySqlConfig & config)
 {
+	int bound = 0;
+	if (MySqlCommand * cmd = connection.CreateCommand())
+	{
+		BIND(uint8);  BIND(int8);   BIND(char);
+		BIND(uint16); BIND(int16);
+		BIND(uint32); BIND(int32);
+		BIND(uint64); BIND(int64);
+		BIND(float);  BIND(double); BIND(bool);
+		BIND(long);
+		bound = 1;
+		cmd->Close();
+		delete cmd;
+	}
+
 	if (!IsSchemaReady(connection))
 	{
 		printf("%s", SchemaMissingHint(connection, config).c_str());
@@ -61,8 +80,8 @@ int CheckSchema(MySqlConnection & connection, const MySqlConfig & config)
 	}
 
 	MySqlConfig copy = config;
-	printf("%s/%d/%d", copy.Describe().c_str(), kExpectedSchemaTables,
-		kExpectedSchemaRoutines);
+	printf("%s/%d/%d/%d", copy.Describe().c_str(), kExpectedSchemaTables,
+		kExpectedSchemaRoutines, bound);
 	return 0;
 }
 EOF

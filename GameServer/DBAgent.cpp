@@ -1022,7 +1022,9 @@ bool CDBAgent::UpdateUser(string & strCharID, UserUpdateType type, CUser *pUser)
 	}
 
 	dbCommand->AddParameter(SQL_PARAM_INPUT, strCharID.c_str(), strCharID.length());
-	dbCommand->AddParameter(SQL_PARAM_INPUT, (char *)pUser->m_bstrSkill, sizeof(pUser->m_bstrSkill));
+	// SQL_BINARY: this is a 10-byte blob (uint8[10] -> VARBINARY(10)), not a
+	// number.  Without it the parameter rendered as one integer byte.
+	dbCommand->AddParameter(SQL_PARAM_INPUT, (char *)pUser->m_bstrSkill, sizeof(pUser->m_bstrSkill), SQL_BINARY);
 	dbCommand->AddParameter(SQL_PARAM_INPUT, (char *)ItemBuffer.contents(), ItemBuffer.size(), SQL_BINARY);
 	dbCommand->AddParameter(SQL_PARAM_INPUT, (char *)SerialBuffer.contents(), SerialBuffer.size(), SQL_BINARY);
 	dbCommand->AddParameter(SQL_PARAM_INPUT, (char *)UserSealBuffer.contents(), UserSealBuffer.size(), SQL_BINARY);
