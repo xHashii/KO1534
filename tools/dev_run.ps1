@@ -34,7 +34,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$compose = Join-Path $repo "docker-compose.yml"
 $dataDir = Join-Path $repo "data"
 $binDir = Join-Path $repo ("bin\{0}\Win32" -f $Configuration)
 
@@ -115,28 +114,25 @@ if ($NoLaunch) { return }
 # ---------------------------------------------------------------------------
 # 4. Servers
 # ---------------------------------------------------------------------------
-$exes = @{
-    AIServer    = Join-Path $binDir "AIServer.exe"
-    LogInServer = Join-Path $binDir "LogInServer.exe"
-    GameServer  = Join-Path $binDir "GameServer.exe"
-}
+# Fixed order, not a hashtable: the game server talks to the AI server, so they
+# must come up AI -> Login -> Game.
+$exes = @(
+    @{ Name = "AIServer";    Path = (Join-Path $binDir "AIServer.exe");    Wait = 2 },
+    @{ Name = "LogInServer"; Path = (Join-Path $binDir "LogInServer.exe"); Wait = 1 },
+    @{ Name = "GameServer";  Path = (Join-Path $binDir "GameServer.exe");  Wait = 0 }
+)
 
-foreach ($name in $exes.Keys) {
-    if (-not (Test-Path $exes[$name])) {
-        throw "$($exes[$name]) not found. Build the solution in Visual Studio 2022 (Win32/$Configuration) first."
+foreach ($exe in $exes) {
+    if (-not (Test-Path $exe.Path)) {
+        throw "$($exe.Path) not found. Build the solution in Visual Studio 2022 (Win32/$Configuration) first."
     }
 }
 
-Write-Host "Starting AIServer (working directory: $dataDir)"
-Start-Process -FilePath $exes["AIServer"] -WorkingDirectory $dataDir
-Start-Sleep -Seconds 2
-
-Write-Host "Starting LogInServer"
-Start-Process -FilePath $exes["LogInServer"] -WorkingDirectory $dataDir
-Start-Sleep -Seconds 1
-
-Write-Host "Starting GameServer"
-Start-Process -FilePath $exes["GameServer"] -WorkingDirectory $dataDir
+foreach ($exe in $exes) {
+    Write-Host ("Starting {0} (working directory: {1})" -f $exe.Name, $dataDir)
+    Start-Process -FilePath $exe.Path -WorkingDirectory $dataDir
+    if ($exe.Wait -gt 0) { Start-Sleep -Seconds $exe.Wait }
+}
 
 Write-Host ""
 Write-Host "Servers are starting. To stop them:"
