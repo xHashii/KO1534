@@ -13,6 +13,10 @@ bool g_bRunning = true;
 
 int main()
 {
+	// Which .exe is this? The timestamp answer "is the fix in this build?" in
+	// the server's own log.
+	ko_runtime::PrintBuildInfo();
+
 	// Resolve ./<server>.ini, ./Map and ./Quests before anything reads a
 	// relative path: they are looked up from the working directory, which is
 	// not necessarily the one the process was started in.

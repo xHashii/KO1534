@@ -230,9 +230,21 @@ else is affected.
 powershell -ExecutionPolicy Bypass -File tools\dev_run.ps1
 ```
 
-starts MySQL, waits until the schema is actually imported, copies
-`config\*.ini` where the servers look for them, and launches
-**AIServer → LogInServer → GameServer** from `bin\<Config>\Win32\`.
+builds the solution, starts MySQL, waits until the schema is actually imported,
+copies `config\*.ini` next to the executables, links `Map\`/`Quests\` there, and
+launches **AIServer → LogInServer → GameServer** from `bin\<Config>\<Platform>\`.
+
+It also refuses to start a binary that is older than the newest source file, and
+each server prints its own build time as its first line:
+
+```
+GameServer.exe build 2026-10-28 14:02:11
+Working directory: C:\...\bin\Debug\x64
+```
+
+so "the fix is in the source but not in the .exe" shows up in the log instead of
+looking like a bug. `-NoBuild` skips the build (the staleness check still runs),
+`-NoLaunch` stops after the database and the file layout are ready.
 
 ### What gets imported
 

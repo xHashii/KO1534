@@ -23,6 +23,26 @@
 // --- the slice of <Windows.h> that RuntimePaths.h uses ---------------------
 typedef unsigned long DWORD;
 typedef int BOOL;
+typedef void * HANDLE;
+typedef unsigned short WORD_;
+
+struct FILETIME
+{
+	DWORD dwLowDateTime;
+	DWORD dwHighDateTime;
+};
+
+struct SYSTEMTIME
+{
+	WORD_ wYear, wMonth, wDayOfWeek, wDay, wHour, wMinute, wSecond, wMilliseconds;
+};
+
+const HANDLE INVALID_HANDLE_VALUE = (HANDLE) (long long) -1;
+const DWORD GENERIC_READ = 0x80000000;
+const DWORD FILE_SHARE_READ = 0x1;
+const DWORD FILE_SHARE_WRITE = 0x2;
+const DWORD FILE_SHARE_DELETE = 0x4;
+const DWORD OPEN_EXISTING = 3;
 const DWORD INVALID_FILE_ATTRIBUTES = (DWORD)-1;
 const DWORD FILE_ATTRIBUTE_DIRECTORY = 0x10;
 #ifndef MAX_PATH
@@ -75,8 +95,40 @@ static DWORD GetCurrentDirectoryA(DWORD size, char * buffer)
 	return (DWORD)length;
 }
 
+// The build-info path needs CreateFileA/GetFileTime; they are stubbed below so
+// the Windows branch of the header is type-checked here as well.
+static HANDLE CreateFileA(const char *, DWORD, DWORD, void *, DWORD, DWORD, void *)
+{
+	return (HANDLE) (long long) 1;
+}
+
+static BOOL GetFileTime(HANDLE, FILETIME *, FILETIME *, FILETIME * written)
+{
+	if (written != nullptr) { written->dwLowDateTime = 0; written->dwHighDateTime = 0; }
+	return 1;
+}
+
+static BOOL FileTimeToLocalFileTime(const FILETIME * input, FILETIME * output)
+{
+	if (input != nullptr && output != nullptr) { *output = *input; }
+	return 1;
+}
+
+static BOOL FileTimeToSystemTime(const FILETIME *, SYSTEMTIME * output)
+{
+	if (output == nullptr)
+		return 0;
+
+	output->wYear = 2026; output->wMonth = 10; output->wDay = 28;
+	output->wHour = 14; output->wMinute = 2; output->wSecond = 11;
+	output->wDayOfWeek = 0; output->wMilliseconds = 0;
+	return 1;
+}
+
+static BOOL CloseHandle(HANDLE) { return 1; }
+
 // --- the header under test -------------------------------------------------
-#define KO_RUNTIME_NO_WINDOWS
+#define KO_RUNTIME_WIN32_SHIM
 #include "../../shared/RuntimePaths.h"
 
 // --- tiny test scaffolding -------------------------------------------------
@@ -191,6 +243,11 @@ int main()
 	Expect(ko_runtime::SelectRuntimeDirectory("LogInServer.ini", false, false),
 		"login server needs only its .ini", Current());
 	Expect(Current() == bare, "login server uses the .ini folder", Current());
+
+	// 7. the build stamp the servers print first (format only; the Windows
+	//    API behaviour itself is not simulated)
+	printf("\nbuild stamp\n");
+	ko_runtime::PrintBuildInfo();
 
 	printf(failures == 0 ? "\nOK: runtime directory selection\n"
 	                     : "\nFAIL: %d scenario(s)\n", failures);

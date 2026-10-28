@@ -31,10 +31,16 @@
 //  chosen path is printed so the log shows where the files came from.
 // ---------------------------------------------------------------------------
 
-#if !defined(KO_RUNTIME_NO_WINDOWS)
+#if defined(KO_RUNTIME_NO_WINDOWS)
+	// Nothing from <Windows.h> is available; the Win32 paths below are skipped.
+#elif defined(KO_RUNTIME_WIN32_SHIM)
+	// tools/tests supplies the few declarations used here, so that the real
+	// code paths can be compiled and run on a machine without Windows.
+#else
 #	include <Windows.h>
 #endif
 
+#include <cstring>
 #include <string>
 #include <cstdio>
 
@@ -101,6 +107,58 @@ namespace ko_runtime
 			parent += "\\";
 
 		return parent;
+	}
+
+	// Prints the executable's own timestamp.  A log that says
+	//
+	//     GameServer.exe build 2026-10-28 14:02:11
+	//
+	// answers "is this the build with the fix?" without guessing: compare it
+	// with the time of the last source change.  MSVC writes the .exe when the
+	// link finishes, so this is the build time, not the source time.
+	inline void PrintBuildInfo()
+	{
+#if defined(KO_RUNTIME_NO_WINDOWS)
+		return;
+#else
+		char modulePath[MAX_PATH] = { 0 };
+		DWORD length = GetModuleFileNameA(nullptr, modulePath, MAX_PATH);
+		if (length == 0 || length == MAX_PATH)
+			return;
+
+		const char * slash = strrchr(modulePath, '\\');
+		const char * name = (slash != nullptr) ? slash + 1 : modulePath;
+
+		SYSTEMTIME local = {};
+		HANDLE file = CreateFileA(modulePath, GENERIC_READ,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			nullptr, OPEN_EXISTING, 0, nullptr);
+
+		if (file != INVALID_HANDLE_VALUE)
+		{
+			FILETIME written = {};
+			FILETIME localFileTime = {};
+
+			if (GetFileTime(file, nullptr, nullptr, &written)
+				&& FileTimeToLocalFileTime(&written, &localFileTime))
+			{
+				FileTimeToSystemTime(&localFileTime, &local);
+			}
+
+			CloseHandle(file);
+		}
+
+		if (local.wYear != 0)
+		{
+			printf("%s build %04d-%02d-%02d %02d:%02d:%02d\n", name,
+				local.wYear, local.wMonth, local.wDay,
+				local.wHour, local.wMinute, local.wSecond);
+		}
+		else
+		{
+			printf("%s (build time unavailable)\n", name);
+		}
+#endif
 	}
 
 	inline std::string JoinPath(const std::string & path, const char * leaf)

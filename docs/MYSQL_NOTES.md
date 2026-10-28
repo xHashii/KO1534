@@ -144,6 +144,19 @@ not be an unquoted reserved word, and every SQL literal in the C++ is scanned
 for T-SQL constructs. `tools/check_sql_syntax.py` parses the same literals with
 sqlglot as MySQL, which is how `SET x += 1` above was found.
 
+`MySqlRecordset::Read()` now also prints the statement it sent when a load
+fails, because the client's message only quotes the fragment it choked on:
+
+```
+ERROR: Could not load table, the error received was:
+You have an error in your SQL syntax ... near 'Range, Weight, ...' at line 1
+  statement: SELECT `Num`, `strName`, ..., `Range`, `Weight`, ... FROM `ITEM`
+```
+
+Backticks around `Range` mean the fixed list is in use; `Range` without them
+means the `.exe` is older than the sources, which the build stamp printed at
+startup now answers directly.
+
 Three procedures are defined but never called from the C++ (`INSERT_CURRENTUSER`,
 `LOAD_SEALED_ITEM_DATA`, `SKILLSHORTCUT_LOAD`), so nothing has exercised them yet;
 `tools/check_call_sites.py` reports them on every run.

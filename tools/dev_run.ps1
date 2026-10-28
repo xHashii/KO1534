@@ -5,6 +5,9 @@
 
 .DESCRIPTION
     What it does, in order:
+      0. Build the solution, so the .exe that runs is the one built from the
+         sources (this is what makes "I still see the same error" impossible:
+         a stale binary is either rebuilt or refused).
       1. `docker compose up -d` and wait until MySQL answers.
       2. Wait until the KO1534 schema is fully imported (first run imports
          001..007 automatically; that takes a couple of minutes).
@@ -22,6 +25,11 @@
     client library shipped with MySQL 8.x is x64-only, so x64 is the usual
     choice.
 
+.PARAMETER NoBuild
+    Skip the build and use the .exe files that are already there.  They are
+    still checked against the sources, so a stale binary is refused rather
+    than started.
+
 .PARAMETER NoLaunch
     Only prepare the database and the configuration, do not start the servers.
 
@@ -37,6 +45,7 @@ param(
     [ValidateSet("Win32", "x64")]
     [string] $Platform = "Win32",
     [switch] $NoLaunch,
+    [switch] $NoBuild,
     [switch] $ResetDatabase
 )
 
@@ -78,6 +87,72 @@ function Wait-For([scriptblock] $Probe, [string] $What, [int] $TimeoutSeconds = 
         Start-Sleep -Seconds 3
     }
     throw "Timed out waiting for $What. Check: docker compose logs mysql"
+}
+
+# Fixed order, not a hashtable: the game server talks to the AI server, so they
+# must come up AI -> Login -> Game.  Declared here because the build step below
+# needs the paths to check them for staleness.
+$exes = @(
+    @{ Name = "AIServer";    Path = (Join-Path $binDir "AIServer.exe");    Wait = 2 },
+    @{ Name = "LogInServer"; Path = (Join-Path $binDir "LogInServer.exe"); Wait = 1 },
+    @{ Name = "GameServer";  Path = (Join-Path $binDir "GameServer.exe");  Wait = 0 }
+)
+
+# ---------------------------------------------------------------------------
+# 0. Build. A stale .exe shows yesterday's errors no matter what the source
+#    says, and nothing in the server's output used to reveal it.  So: build,
+#    then refuse to start anything older than the newest source file.
+# ---------------------------------------------------------------------------
+$solution = Join-Path $repo "ALPHAGAME v1534.sln"
+$buildScript = Join-Path $repo "tools\build.ps1"
+
+if (-not $NoBuild) {
+    if (-not (Test-Path $solution)) {
+        throw ("Solution not found: {0}`nThis checkout is incomplete." -f $solution)
+    }
+
+    Write-Host ("Building {0}|{1}..." -f $Configuration, $Platform)
+    $buildResult = Invoke-Native -FilePath powershell -ArgumentList @(
+        "-ExecutionPolicy", "Bypass", "-File", $buildScript,
+        "-Platform", $Platform, "-Configuration", $Configuration)
+
+    if ($buildResult.Text) { Write-Host $buildResult.Text }
+
+    if ($buildResult.ExitCode -ne 0) {
+        throw (("Build FAILED (exit {0}). The .exe files were not updated, so the " +
+                "servers would start with the previous code. Fix the errors above, " +
+                "then run this script again.") -f $buildResult.ExitCode)
+    }
+}
+
+# Newest source file anywhere in the three projects or shared\.
+$sourceFiles = @(
+    (Join-Path $repo "shared"),
+    (Join-Path $repo "GameServer"),
+    (Join-Path $repo "AIServer"),
+    (Join-Path $repo "LogInServer")
+) | Where-Object { Test-Path $_ } |
+    Get-ChildItem -Recurse -Include *.cpp, *.h -File -ErrorAction SilentlyContinue
+
+$newestSource = $sourceFiles | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+# An .exe older than the newest source file does not contain that source. This
+# is the check that catches "the fix is in the code but not in the binary"
+# without a round trip.
+if ($newestSource) {
+    foreach ($exe in $exes) {
+        if (-not (Test-Path $exe.Path)) { continue }   # reported with the build hint below
+
+        $binary = Get-Item $exe.Path
+        if ($binary.LastWriteTime -lt $newestSource.LastWriteTime.AddSeconds(-2)) {
+            throw (("{0} was built {1}, but {2} changed {3}, so this binary does not " +
+                    "contain the current sources.`nRebuild it:`n    " +
+                    "powershell -ExecutionPolicy Bypass -File tools\build.ps1 " +
+                    "-Platform {4} -Configuration {5}") -f `
+                    $binary.Name, $binary.LastWriteTime, $newestSource.Name,
+                    $newestSource.LastWriteTime, $Platform, $Configuration)
+        }
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -242,7 +317,7 @@ if ($env:MYSQL_ROOT) {
 }
 
 # ---------------------------------------------------------------------------
-# 3c. Runtime layout check: what the servers will actually see.
+# 3c. Runtime layout: what the servers will actually see.
 # ---------------------------------------------------------------------------
 $missing = @()
 foreach ($required in @("GameServer.ini", "LogInServer.ini", "AIServer.ini")) {
@@ -255,37 +330,59 @@ if ($missing) {
            "They are copied from config\ by this script; copy them by hand if you launch the .exe directly.")
 }
 
-foreach ($asset in @("Map", "Quests")) {
-    if (-not (Test-Path (Join-Path $binDir $asset))) {
-        Write-Host "Note: $binDir\$asset is not present; the server will fall back to $dataDir\$asset"
-    }
+function Get-AssetCount([string] $Path, [string] $Filter) {
+    if (-not (Test-Path $Path)) { return -1 }
+    return @(Get-ChildItem $Path -Filter $Filter -File -ErrorAction SilentlyContinue).Count
 }
 
-$mapCount = (Get-ChildItem (Join-Path $dataDir "Map") -Filter *.smd -ErrorAction SilentlyContinue).Count
-$questCount = (Get-ChildItem (Join-Path $dataDir "Quests") -Filter *.lua -ErrorAction SilentlyContinue).Count
+$mapSource = Join-Path $dataDir "Map"
+$questSource = Join-Path $dataDir "Quests"
+$mapCount = Get-AssetCount $mapSource "*.smd"
+$questCount = Get-AssetCount $questSource "*.lua"
+
+Write-Host "Assets in data\: Map = $mapCount .smd, Quests = $questCount .lua"
+
+# A server that finds no zone file starts, prints "Map data not found" per zone
+# and looks broken for an unrelated reason, so this is checked up front.
+if ($mapCount -le 0 -or $questCount -le 0) {
+    $problems = @()
+    if ($mapCount -le 0) { $problems += ("data\Map has {0} .smd files" -f $mapCount) }
+    if ($questCount -le 0) { $problems += ("data\Quests has {0} .lua files" -f $questCount) }
+
+    throw (("The game data is missing from this checkout: {0}.`n" +
+            "The repository tracks 68 .smd files under data\Map and 599 .lua files " +
+            "under data\Quests, so this is a checkout problem, not a build problem.`n`n" +
+            "Check whether the files were deleted or never checked out:`n" +
+            "    git status --short data`n" +
+            "    git ls-files data/Map | Measure-Object -Line`n" +
+            "Restore them with:`n" +
+            "    git checkout -- data`n" +
+            "If this is a sparse or partial clone, materialise them with:`n" +
+            "    git sparse-checkout disable`n" +
+            "    git checkout -- data") -f ($problems -join "; "))
+}
+
+$aiEventCount = Get-AssetCount $mapSource "*.aievt"
 Write-Host "Working directory: $binDir"
-Write-Host ("  Map\    {0} .smd, {1} .aievt" -f $mapCount,
-    (Get-ChildItem (Join-Path $dataDir "Map") -Filter *.aievt -ErrorAction SilentlyContinue).Count)
-Write-Host ("  Quests\ {0} .lua" -f $questCount)
+Write-Host ("  Map\    {0} .smd, {1} .aievt  (from {2})" -f $mapCount, $aiEventCount, $mapSource)
+Write-Host ("  Quests\ {0} .lua  (from {1})" -f $questCount, $questSource)
 
 if ($NoLaunch) { return }
 
 # ---------------------------------------------------------------------------
 # 4. Servers
 # ---------------------------------------------------------------------------
-# Fixed order, not a hashtable: the game server talks to the AI server, so they
-# must come up AI -> Login -> Game.
-$exes = @(
-    @{ Name = "AIServer";    Path = (Join-Path $binDir "AIServer.exe");    Wait = 2 },
-    @{ Name = "LogInServer"; Path = (Join-Path $binDir "LogInServer.exe"); Wait = 1 },
-    @{ Name = "GameServer";  Path = (Join-Path $binDir "GameServer.exe");  Wait = 0 }
-)
-
 foreach ($exe in $exes) {
     if (-not (Test-Path $exe.Path)) {
         throw ("{0} not found. Build the solution in Visual Studio 2022 ({1}/{2}) first." -f `
                $exe.Path, $Platform, $Configuration)
     }
+}
+
+# Timestamps, so the log itself says which binaries are running.
+foreach ($exe in $exes) {
+    $binary = Get-Item $exe.Path
+    Write-Host ("{0} built {1}" -f $binary.Name, $binary.LastWriteTime)
 }
 
 foreach ($exe in $exes) {

@@ -14,6 +14,7 @@
 #define _vsntprintf vsnprintf
 #define _vsnprintf vsnprintf
 #define _stprintf sprintf
+#define _sntprintf snprintf
 #define _snprintf snprintf
 #endif
 

@@ -10,7 +10,7 @@ MySqlRecordset::MySqlRecordset(MySqlConnection * dbConnection) : _dbConnection(d
 
 TCHAR * MySqlRecordset::Read(bool bAllowEmptyTable /*= false*/)
 {
-	static TCHAR szError[128] = {0};
+	static TCHAR szError[2048] = {0};
 
 	if (_dbCommand == nullptr)
 	{
@@ -37,7 +37,17 @@ TCHAR * MySqlRecordset::Read(bool bAllowEmptyTable /*= false*/)
 
 	// Attempt to execute the statement.
 	if (!_dbCommand->Execute(szSQL))
-		return _dbCommand->GetError();
+	{
+		// The client's message only quotes the fragment it choked on, which is
+		// not enough to tell a stale binary from a bad statement - so the whole
+		// statement goes into the error.  Seeing `Range` here means the fixed
+		// list is in use; seeing Range without backticks means the .exe was
+		// built before the fix.
+		_sntprintf(szError, (sizeof(szError) / sizeof(TCHAR)) - 1,
+			_T("%s\n  statement: %s"), _dbCommand->GetError(), szSQL.c_str());
+		szError[(sizeof(szError) / sizeof(TCHAR)) - 1] = 0;
+		return szError;
+	}
 
 	// Does the table have any rows?
 	// Make sure we allow for tables that can be empty.
