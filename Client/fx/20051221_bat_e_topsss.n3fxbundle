@@ -1,0 +1,9 @@
+<N3FXBUNDLE>
+<PART> fx/20051221_bat_e_tops.n3fxpart 0.00
+<PART> fx/20051221_bat_e_tops_particle.n3fxpart 0.00
+<PART> fx/20051221_bat_e_tops_sun.n3fxpart 0.00
+<Depend_Scale> false
+<Static_Pos> false
+<Velocity> 0.0000
+<earthquake> false
+<startearth_time> 0.00
