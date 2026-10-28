@@ -99,7 +99,7 @@ HOST = 127.0.0.1
 PORT = 3306
 NAME = KO1534
 USER = ko1534
-PASSWORD = change_me
+PASSWORD = ko1534        ; the throwaway local default - change it anywhere real
 CHARSET = latin1
 CONNECT_TIMEOUT = 15
 ```
@@ -115,6 +115,35 @@ sections are no longer read — if they are still present they are ignored.
 | schema/data/routine generation | generated, statically validated |
 | routine parameter counts vs C++ call sites | checked by `tools/check_call_sites.py` (52/52) |
 | `shared/database` type-check (g++ -fsyntax-only, stub headers) | passes — `tools/syntax_check_db_layer.sh` |
+| `002_data.sql.gz` reproducible (same sha256 on every run) | verified |
+| gzip round-trip equals the generated 143 MB SQL | verified (byte count + sha256) |
+| `docker-compose.yml` parses as YAML, mounts and env as intended | checked, **not run** |
 | C++ build (VS2022, Win32) | **not verified** — needs Windows |
-| import into MySQL 8.4 | **not verified** — needs a server |
+| import into MySQL 8.4 (`docker compose up -d` or the setup scripts) | **not verified** — no MySQL/Docker in this environment |
+| startup schema check (`shared/database/SchemaCheck.h`) | type-checks, **not compiled by MSVC** |
 | login / character / world round-trip with the client | **not verified** |
+
+## Getting the database in place
+
+Three equivalent routes, in order of convenience:
+
+1. `docker compose up -d` — the container imports `001` … `007` on first start of
+   an empty volume, gzip included. Nothing else to do.
+2. `tools/setup_database.ps1` (Windows) / `tools/setup_database.sh` (Linux,
+   macOS) — same import against an existing MySQL, no Docker, no Python. Both
+   refuse to touch a database that already has `TB_USER` unless forced.
+3. `mysql < file` by hand, in filename order.
+
+Two invariants make route 1 work, and both are easy to break:
+
+* **The directory must contain one copy of the data.** The entrypoint imports
+  *every* `.sql` and `.sql.gz` it finds, in filename order. A plain
+  `002_data.sql` left behind next to `002_data.sql.gz` would be imported twice
+  and the second pass would fail on duplicate primary keys — which is why the
+  generator deletes the plain file again after compressing it
+  (`--keep-plain-data` keeps it for debugging, and then route 1 must not be
+  used until it is removed).
+* **`002` must stay gzipped and committed.** It is 2.0 MB compressed against
+  143 MB plain; the `.gitignore` ignores the plain name and un-ignores the
+  `.gz`, so a `git clean -xdf` does not leave the compose file with nothing to
+  import.

@@ -175,6 +175,7 @@
     <ClInclude Include="crc32.h" />
     <ClInclude Include="database\DbConfigReader.h" />
     <ClInclude Include="database\DbTypes.h" />
+    <ClInclude Include="database\SchemaCheck.h" />
     <ClInclude Include="database\MySqlCommand.h" />
     <ClInclude Include="database\MySqlConnection.h" />
     <ClInclude Include="database\MySqlParameter.h" />

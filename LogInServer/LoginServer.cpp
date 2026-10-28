@@ -41,6 +41,14 @@ bool LoginServer::Startup()
 		return false;
 	}
 
+	printf("Connected to MySQL: %s\n", m_dbConfig.Describe().c_str());
+
+	if (!m_DBProcess.IsSchemaReady())
+	{
+		printf("\n%s", SchemaMissingHint(m_dbConfig).c_str());
+		return false;
+	}
+
 	printf("Connected to database server.\n");
 	if (!m_DBProcess.LoadVersionList())
 	{

@@ -119,6 +119,13 @@ Quests/Cache/
 # Knight Online 1534 - C++ server, MySQL port
 # ------------------------------------------------------------------
 
-# Generated from KO1534_sql.zip by tools/sqlserver_to_mysql.py (143 MB).
-# Regenerate with:  python3 tools/sqlserver_to_mysql.py
+# Generated from KO1534_sql.zip by tools/sqlserver_to_mysql.py.
+# The uncompressed file is 143 MB and stays out of Git.  The gzip of it is
+# ~2 MB (mostly zero-filled binary + padding), so that one IS committed -
+# it is what lets `docker compose up -d` and the setup scripts import the
+# data without Python on the developer's machine.
 migrations/mysql/002_data.sql
+!migrations/mysql/002_data.sql.gz
+
+# docker compose overrides (copy .env.example to .env); never commit secrets.
+.env

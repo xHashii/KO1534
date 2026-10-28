@@ -10,6 +10,7 @@ Source: `KO1534_sql.zip` (unmodified).
 | INSERT statements generated | 171445 |
 | Stored procedures / functions (manual port) | 118 |
 | Views | 1 |
+| 002_data.sql.gz | 2.0 MB |
 
 ## Rows per table
 

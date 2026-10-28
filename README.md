@@ -22,16 +22,20 @@ Client/                    the 1534 client tree
 data/                      Map\ and Quests\ the game server loads at runtime
 KO1534_sql.zip             original SQL Server dump (kept byte-identical)
 config/                    sample .ini files — copy next to the executables
-migrations/mysql/          the MySQL port (see below)
-tools/                     migration generator + static validators
+migrations/mysql/          the MySQL port; imported automatically on first run
+docker-compose.yml         one-command MySQL 8.4 with that import built in
+.env.example               overrides for the container (copy to .env)
+tools/                     migration generator, setup scripts, static validators
 docs/                      migration notes and findings
 ```
 
 ## Prerequisites
 
 * Visual Studio 2022 (v143 toolset), **Win32/x86** for the 1534 client
-* MySQL Server 8.4 LTS (8.0 works too)
+* MySQL 8.4 LTS — either Docker Desktop, or a local install you point
+  `tools/setup_database.ps1` at
 * MySQL Connector/C 8.x (the client library, `libmysql.dll` + `libmysql.lib`)
+  — this is for the *server* build, not for the database setup
 
 ## 1. Build
 
@@ -50,35 +54,81 @@ Platform: **Win32**. The client is 32-bit and speaks the original packet format;
 an x64 server build would need a rebuild of the whole socket/crypto layer and is
 not part of this port.
 
-## 2. Create the database
+## 2. Database (automatic)
 
-```sql
-CREATE DATABASE KO1534 CHARACTER SET latin1 COLLATE latin1_general_ci;
-CREATE USER 'ko1534'@'%' IDENTIFIED BY 'change_me';
-GRANT ALL PRIVILEGES ON KO1534.* TO 'ko1534'@'%';
+The migration files are executed for you. Docker is the shortest path:
+
+```powershell
+copy .env.example .env      # optional - the defaults already work
+docker compose up -d
 ```
 
-`latin1` is deliberate and not an oversight — see `docs/MYSQL_NOTES.md`
-(“Encoding”). Do not switch the schema to `utf8mb4`.
+That is the whole database step. MySQL 8.4 starts, and on the **first** start of
+an empty volume the container executes every file in
+`migrations/mysql/` in order (`docker-entrypoint-initdb.d`), including the
+gzipped data file, which it decompresses itself. Nothing to type, no Python, no
+`mysql.exe`. The import takes a couple of minutes (143 MB of `INSERT`s); wait
+for the container to become healthy:
 
-## 3. Import
+```powershell
+docker compose ps                  # STATUS: healthy when the import is done
+docker compose logs -f mysql       # ...or watch it happen
+```
 
-Files are applied in order to a **fresh** database (`mysql -u ko1534 -p KO1534 < file.sql`).
-`001_schema.sql` uses plain `CREATE TABLE`, so a second run fails loudly instead
-of silently keeping stale data:
+The result is reachable exactly as the sample configs expect:
+
+```
+host 127.0.0.1:3306   database KO1534   user ko1534   password ko1534
+```
+
+Change those in `.env` **and** in `config\*.ini` if you do not want the dev
+defaults. The container only imports when its data volume is empty; to start
+over:
+
+```powershell
+docker compose down -v
+docker compose up -d
+```
+
+### Without Docker
+
+If you already have MySQL 8.4 installed, `tools/setup_database.ps1` does the
+same thing with your own `mysql.exe` (creates the database and the app user,
+imports `001` → the data → `003`…`007`, and refuses to touch a database that
+already has the schema unless you pass `-Force`):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\setup_database.ps1
+```
+
+`tools/setup_database.sh` is the same for Linux/macOS. Neither needs Python.
+
+### Both steps together
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\dev_run.ps1
+```
+
+starts MySQL, waits until the schema is actually imported, copies
+`config\*.ini` where the servers look for them, and launches
+**AIServer → LogInServer → GameServer** from `bin\<Config>\Win32\`.
+
+### What gets imported
 
 | file | contents |
 |---|---|
 | `migrations/mysql/001_schema.sql` | 104 tables (types, collation, keys) |
-| `migrations/mysql/002_data.sql` | 171,445 rows — **generated, not committed** |
+| `migrations/mysql/002_data.sql.gz` | 171,445 rows, gzipped (2.0 MB) |
 | `migrations/mysql/003_functions.sql` | 10 functions + `ACCOUNT_CHAR_VIEW` |
 | `migrations/mysql/004_procedures.sql` | login / character / session procedures |
 | `migrations/mysql/005_reconstructed.sql` | reconstructed objects (see below) |
 | `migrations/mysql/006_procedures_clan_account.sql` | clan, friends, seals, daily ops, nation transfer |
 | `migrations/mysql/007_procedures_mail_king.sql` | mail box and king election |
 
-`002_data.sql` is 143 MB and is regenerated from the untouched
-`KO1534_sql.zip`:
+`001_schema.sql` uses plain `CREATE TABLE`, so a second import fails loudly
+instead of silently keeping stale data. The uncompressed `002_data.sql`
+(143 MB) is not committed — it is regenerated from the untouched
+`KO1534_sql.zip`, and the generator also rewrites the committed `.gz`:
 
 ```bash
 python3 tools/sqlserver_to_mysql.py --routines-dir /tmp/ko/routines
@@ -87,11 +137,16 @@ python3 tools/check_call_sites.py             # C++ CALL vs procedure signatures
 tools/syntax_check_db_layer.sh                # type-checks shared/database on Linux
 ```
 
-Both validators must print `OK` before you import.
+Both validators must print `OK` before you import. The gzip is byte-for-byte
+reproducible (`mtime=0`, no stored filename), so regenerating it produces no
+diff; the generator deletes the plain file again on purpose, because the MySQL
+entrypoint would import both copies and the second one would die on duplicate
+keys.
 
-## 4. Configure and run
+## 3. Configure
 
-Copy `config/*.ini` next to the executables and edit the `[DATABASE]` blocks:
+Point a browser/editor at the database with the same values (Navicat, HeidiSQL
+and `mysql.exe` all work — there is no DSN or ODBC driver manager involved):
 
 ```ini
 [DATABASE]
@@ -99,22 +154,30 @@ HOST = 127.0.0.1
 PORT = 3306
 NAME = KO1534
 USER = ko1534
-PASSWORD = change_me
+PASSWORD = ko1534
 CHARSET = latin1
 ```
 
-No DSN, no ODBC driver manager, no `odbcad32.exe`. The game server additionally
-reads `[ACCOUNT_DATABASE]` (falls back to `[DATABASE]` when absent).
+`config/*.ini` holds the templates; copy them next to the executables (or into
+`data\`, which `tools\dev_run.ps1` does for you) and edit. The game server
+additionally reads `[ACCOUNT_DATABASE]` (falls back to `[DATABASE]` when
+absent). The committed values are the local Docker setup — change them for
+anything that is not a throwaway local database, and never commit the result.
 
-Start order: **AIServer → LogInServer → GameServer**, working directory of the
-game server set to the folder containing `data\Map`.
+Start order: **AIServer → LogInServer → GameServer**, working directory set to
+the folder containing `data\Map`.
+
+If a server starts before the database is ready, or against an empty schema, it
+says so and names the command to run — it no longer fails somewhere deep inside
+a table load.
 
 ## 5. Verify
 
 The checks that actually run in this repository (Linux, no MySQL, no MSVC) are
-the two validators above. Everything else — compiling with VS2022, importing
-into a live MySQL 8.4, and logging in with the real client — has to be done on
-Windows and is **not** claimed as verified here. `docs/MYSQL_NOTES.md` lists
+the two validators and the type-check script above. Everything else —
+compiling with VS2022, importing into a live MySQL 8.4, and logging in with the
+real client — has to be done on Windows and is **not** claimed as verified
+here. `docs/MYSQL_NOTES.md` lists
 exactly what has been inspected, generated, statically checked and what is still
 open.
 

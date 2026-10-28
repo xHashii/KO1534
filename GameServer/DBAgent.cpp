@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "../shared/database/MySqlConnection.h"
+#include "../shared/database/SchemaCheck.h"
 #include "KnightsManager.h"
 #include "DBAgent.h"
 #include "../shared/DateTime.h"
@@ -44,6 +45,18 @@ bool CDBAgent::Connect(const MySqlConfig & accountConfig, const MySqlConfig & ga
 	if (!m_GameDB->Connect(gameConfig))
 	{
 		ReportSQLError(m_GameDB->GetError());
+		return false;
+	}
+
+	printf(_T("Connected to MySQL: %s (world) / %s (account)\n"),
+		m_GameDB->GetConfig().Describe().c_str(),
+		m_AccountDB->GetConfig().Describe().c_str());
+
+	// A reachable but empty MySQL is the most common first-run problem: every
+	// table load fails later and the cause is invisible.  Say it once, here.
+	if (!IsSchemaReady(*m_GameDB))
+	{
+		printf("\n%s", SchemaMissingHint(gameConfig).c_str());
 		return false;
 	}
 

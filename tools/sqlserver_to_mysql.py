@@ -20,6 +20,8 @@ Usage:
 """
 
 import argparse
+import gzip
+import shutil
 import io
 import os
 import re
@@ -514,12 +516,25 @@ def count_inserts(text):
     return per
 
 
+def _human(path):
+    """Size of a generated artefact, for the report."""
+    if not os.path.exists(path):
+        return "not generated"
+    size = os.path.getsize(path)
+    for unit in ("B", "KB", "MB", "GB"):
+        if size < 1024 or unit == "GB":
+            return "%.1f %s" % (size, unit)
+        size /= 1024.0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--zip", default="KO1534_sql.zip")
     ap.add_argument("--out", default="migrations/mysql")
     ap.add_argument("--routines-dir", default=None,
                     help="dump the SQL Server procedures/functions/view here for manual porting")
+    ap.add_argument("--keep-plain-data", action="store_true",
+                    help="also keep the 143 MB uncompressed 002_data.sql")
     ap.add_argument("--check", action="store_true", help="verify generated files only")
     args = ap.parse_args()
 
@@ -603,7 +618,30 @@ def main():
         per_table[table] += 1
     data.append("")
     data.append("COMMIT;")
-    open(os.path.join(args.out, "002_data.sql"), "w", encoding="latin-1").write("\n".join(data) + "\n")
+    data_path = os.path.join(args.out, "002_data.sql")
+    with open(data_path, "w", encoding="latin-1") as f:
+        f.write("\n".join(data) + "\n")
+
+    # The uncompressed file is 143 MB and stays out of Git; the gzip of it is
+    # only ~2 MB (the dump is mostly zero-filled binary and padding), so the
+    # .gz IS committed.  That is what makes `docker compose up -d` and the
+    # setup scripts work without Python on the developer's machine.
+    #
+    # IMPORTANT: the MySQL entrypoint imports *every* .sql and .sql.gz in
+    # /docker-entrypoint-initdb.d, in filename order.  A leftover
+    # 002_data.sql next to 002_data.sql.gz would therefore be imported twice
+    # and the second pass would die on duplicate primary keys.  So the plain
+    # file is deleted again after it has been compressed and verified (see
+    # below); --keep-plain-data exists only for debugging.
+    gz_path = data_path + ".gz"
+    # mtime=0 / no stored filename: regenerating must produce byte-identical
+    # output, otherwise every run would add a new blob to Git.
+    with open(data_path, "rb") as src, open(gz_path, "wb") as raw, \
+            gzip.GzipFile(filename="", mode="wb", fileobj=raw,
+                          compresslevel=9, mtime=0) as dst:
+        shutil.copyfileobj(src, dst, length=1 << 20)
+    print("wrote %s (%.1f MB compressed)"
+          % (gz_path, os.path.getsize(gz_path) / (1024.0 * 1024.0)), file=sys.stderr)
 
     # ---------------- routines (reference only) ----------------
     if args.routines_dir:
@@ -649,6 +687,7 @@ def main():
              "| INSERT statements generated | %d |" % sum(gen_counts.values()),
              "| Stored procedures / functions (manual port) | %d |" % len(routines),
              "| Views | %d |" % len(views),
+             "| 002_data.sql.gz | %s |" % _human(os.path.join(args.out, "002_data.sql.gz")),
              "", "## Rows per table", "", "| Table | Dump | Generated |", "|---|---|---|"]
     for t in sorted(dump_counts):
         lines.append("| %s | %d | %d |" % (t, dump_counts[t], gen_counts.get(t, 0)))
@@ -670,6 +709,12 @@ def main():
     else:
         lines.append("All INSERT statements accounted for: counts match the dump.")
     open(os.path.join(args.out, "REPORT.md"), "w", encoding="utf-8").write("\n".join(lines) + "\n")
+
+    # The report above re-read the plain file to count what was actually
+    # written; now drop it so the directory only holds files the MySQL
+    # entrypoint should import.
+    if not args.keep_plain_data:
+        os.remove(data_path)
 
     print("wrote schema (%d tables), data (%d inserts)" %
           (len(tables), sum(gen_counts.values())), file=sys.stderr)

@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+#  KO1534 - local MySQL 8.4 for the C++ servers.
+#
+#      docker compose up -d          # first run: creates the database and
+#                                    # imports 001..007 automatically
+#      docker compose down          # stop, keep the data
+#      docker compose down -v       # stop and wipe, next "up" re-imports
+#
+#  On the very first start (empty data volume) the official MySQL image runs
+#  every file in /docker-entrypoint-initdb.d in alphabetical order, so
+#  migrations/mysql/*.sql(.gz) are imported with no manual step:
+#
+#      001_schema.sql  -> tables
+#      002_data.sql.gz -> rows (gzip is handled natively by the entrypoint)
+#      003..007_*.sql  -> functions, views, procedures
+#
+#  Credentials default to a local-development pair, overridable through a
+#  .env file next to this file (see .env.example).  Nothing secret is
+#  committed.
+# ---------------------------------------------------------------------------
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: ko1534-mysql
+    restart: unless-stopped
+    command:
+      # The KO schema pins per-table charsets, but the server default is set to
+      # the same byte-oriented charset so nothing is re-encoded on the way in.
+      - --character-set-server=latin1
+      - --collation-server=latin1_general_ci
+      - --max-allowed-packet=64M
+      - --innodb-buffer-pool-size=512M
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-ko1534root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-KO1534}
+      MYSQL_USER: ${MYSQL_USER:-ko1534}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ko1534}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - ko1534-mysql-data:/var/lib/mysql
+      # Read-only: the container imports these, it never writes to the repo.
+      - ./migrations/mysql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # While the first-run import is running, MySQL listens on a socket only
+      # (the entrypoint starts a temporary server with networking disabled), so
+      # "healthy" really means "the migration finished and the server is up".
+      # 60 retries x 5s covers a slow import of the 143 MB of INSERTs.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-ko1534root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 20s
+
+volumes:
+  ko1534-mysql-data:
