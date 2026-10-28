@@ -1,0 +1,119 @@
+# ------------------------------------------------------------------
+# Knight Online 1534 - C# Rewrite (Ko1534)
+# ------------------------------------------------------------------
+
+# Visual Studio / .NET
+.vs/
+*.user
+*.suo
+*.sln.docstates
+*.suo.*
+*.userosscache
+*.sln.ltconverterproj
+*.slnx
+
+# Build outputs
+bin/
+obj/
+Debug/
+Release/
+[Dd]ebug/
+[Rr]elease/
+[Bb]in/
+[Oo]bj/
+artifacts/
+output/
+out/
+TestResults/
+*.pdb
+*.pch
+*.iobj
+*.ipch
+*.ilk
+*.ilklog
+*.ilksym
+*.res
+*.recipe
+*.tlog
+*.tlog.*
+*.Build.CppClean.log
+*.lib.recipe
+*.exe.recipe
+*.log
+proj-*.log
+*.Build.log
+*.CoreClr.log
+
+# C++ / MSBuild legacy artifacts (original reference sources)
+*.obj
+*.o
+*.a
+*.lib
+*.asm
+*.map
+*.exp
+*.idb
+*.ilk
+*.rc
+*.resx
+.vs/
+*.sdf
+*.opendb
+*.ipch
+*.pch
+*.pchw
+*.ncb
+*.suo
+*.user
+*.tlog
+x64/
+Win32/
+
+# Lua / vendored build outputs
+scripting/Lua/*.o
+scripting/Lua/src/*.o
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs and runtime output (keep the folder, ignore contents)
+Logs/
+logs/
+*.log
+
+# Configuration secrets - keep templates, ignore real configs
+config/*.local.ini
+config/*.secret.ini
+*.secret.ini
+.env
+
+# Database exports / dumps (large, never commit).
+# Note: *.sql is intentionally NOT ignored — migrations/*.sql are source.
+# The auto-generated 0002_data.sql (137 MB) is ignored because Docker loads
+# it from the working tree; it can be regenerated from KO1534_sql.zip.
+*.sql.gz
+!migrations/0002_data.sql.gz
+*.bak
+*.dump
+*.dump.gz
+mysql-data/
+migrations/_import/
+migrations/0002_data.sql
+KO1534.sql
+KO1534_utf8.sql
+
+# Quest / script runtime caches
+Quests/Cache/
+
+# Game data binaries (keep data/ structure and .gitkeep, ignore real files).
+# The user's 1534 maps/quests/AI-event files are committed intentionally.
+# Prefer shipping maps/quests in a separate data distribution, not in Git.
+# (Currently commented out — uncomment to exclude from Git.)
+# data/map/*.smd
+# data/Quests/*.lua

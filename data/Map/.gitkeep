@@ -1,0 +1,3 @@
+# Placeholder so the empty data/map directory is tracked by Git.
+# Real content: one binary SMD file per zone, named after ZONE_INFO.strZoneName
+# (lowercased). These files are excluded by .gitignore once present.

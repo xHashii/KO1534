@@ -1,0 +1,3 @@
+# Placeholder so the empty data/Quests directory is tracked by Git.
+# Real content: Lua quest scripts (.lua), named after K_QUEST_HELPER.strLuaFilename.
+# These files are excluded by .gitignore once present.
