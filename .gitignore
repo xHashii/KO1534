@@ -129,3 +129,7 @@ migrations/mysql/002_data.sql
 
 # docker compose overrides (copy .env.example to .env); never commit secrets.
 .env
+
+# Python bytecode (tools/*.py are run directly, never packaged)
+__pycache__/
+*.pyc
