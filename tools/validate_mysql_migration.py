@@ -165,6 +165,29 @@ def validate_data(schema, path, limit=None):
 
 
 # --------------------------------------------------------------- routines ---
+TABLE_REF_RE = re.compile(
+    r"\b(?:FROM|JOIN|UPDATE|INSERT\s+INTO|DELETE\s+FROM)\s+`?([A-Za-z_][A-Za-z0-9_]*)`?",
+    re.I)
+
+
+def check_table_references(path, body, schema):
+    """Every table a routine touches must exist in 001_schema.sql."""
+    for m in TABLE_REF_RE.finditer(body):
+        name = m.group(1)
+        upper = name.upper()
+        if upper in ("SELECT", "DUAL", "WHERE", "SET", "VALUES", "INTO"):
+            continue
+        if upper in schema:
+            continue
+        # A reference may be resolved through a table alias defined earlier in
+        # the same statement (UPDATE x a SET ... WHERE a.col), so an unknown
+        # name is only reported when it is not an alias in this routine.
+        if re.search(r"\b(?:FROM|JOIN|UPDATE|INTO)\s+`?\w+`?\s+(?:AS\s+)?%s\b" % re.escape(name),
+                     body, re.I):
+            continue
+        err("%s: routine references unknown table `%s`" % (os.path.basename(path), name))
+
+
 def validate_routines(path):
     text = open(path, encoding="latin-1").read()
     bodies = re.findall(r"DELIMITER \$\$(.*?)DELIMITER ;", text, re.S)
@@ -231,6 +254,15 @@ def main():
     for n in sorted(f for f in os.listdir(MIG)
                     if f.endswith(".sql") and f[0].isdigit() and f[:3] >= "003"):
         validate_routines(os.path.join(MIG, n))
+
+    # Table references inside routines (catches typos the schema check cannot).
+    known = {t.upper() for t in schema}
+    known.add("SERVER_LIST")
+    for n in sorted(f for f in os.listdir(MIG)
+                    if f.endswith(".sql") and f[0].isdigit() and f[:3] >= "003"):
+        text = open(os.path.join(MIG, n), encoding="latin-1").read()
+        text = re.sub(r"--[^\n]*", "", text)
+        check_table_references(os.path.join(MIG, n), text, known)
 
     for k, v in stats.items():
         print("%-24s %s" % (k, v))

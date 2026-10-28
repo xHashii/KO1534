@@ -826,7 +826,6 @@ proc: BEGIN
     UPDATE FRIEND_LIST SET strUserID = p_newCharID WHERE strUserID = p_oldCharID;
 
     UPDATE USER_RENTAL_ITEM SET strUserID = p_newCharID WHERE strUserID = p_oldCharID;
-    UPDATE USER_RENTAL_ITEM SET strAccountID = strAccountID WHERE strUserID = p_newCharID;
     UPDATE RENTAL_ITEM SET strLenderCharID = p_newCharID WHERE strLenderCharID = p_oldCharID;
     UPDATE RENTAL_ITEM SET strBorrowerCharID = p_newCharID WHERE strBorrowerCharID = p_oldCharID;
     UPDATE RENTAL_ITEM_LIST SET strBorrowerCharID = p_newCharID WHERE strBorrowerCharID = p_oldCharID;
