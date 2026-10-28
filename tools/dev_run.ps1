@@ -25,6 +25,11 @@
     client library shipped with MySQL 8.x is x64-only, so x64 is the usual
     choice.
 
+.PARAMETER NoSelfTest
+    Skip the ACCOUNT_LOGIN self-test. It only runs a query, but it stops the
+    script when it fails, so this is the escape hatch if the check itself is
+    wrong.
+
 .PARAMETER NoBuild
     Skip the build and use the .exe files that are already there.  They are
     still checked against the sources, so a stale binary is refused rather
@@ -46,6 +51,7 @@ param(
     [string] $Platform = "Win32",
     [switch] $NoLaunch,
     [switch] $NoBuild,
+    [switch] $NoSelfTest,
     [switch] $ResetDatabase
 )
 
@@ -286,37 +292,54 @@ Write-Host "Database ready: mysql://${dbUser}:***@127.0.0.1:3306/$dbName  (table
 #   errors/empty     -> the procedure is missing or failing in this database;
 #                       re-import 004_procedures.sql (see the message below)
 # ---------------------------------------------------------------------------
-$selfTestSql = "DELETE FROM TB_USER WHERE strAccountID = '_kologin_test'; " +
-               "SET @ko_out0 = NULL; " +
-               "CALL ACCOUNT_LOGIN(@ko_out0, '_kologin_test', 'X'); " +
-               "SELECT @ko_out0; " +
-               "DELETE FROM TB_USER WHERE strAccountID = '_kologin_test';"
-
-$selfTest = Invoke-Native -FilePath docker -ArgumentList @(
-    "compose", "exec", "-T", "mysql", "mysql", "-u$dbUser", "-p$dbPass", "-N", "-B", "-e", $selfTestSql)
-
-$selfTestResult = $selfTest.StdOut.Trim()
-if ($selfTest.ExitCode -eq 0 -and $selfTestResult -eq "1") {
-    Write-Host "Auto-registration self-test: ok (ACCOUNT_LOGIN returned 1)"
+if ($NoSelfTest) {
+    Write-Host "Auto-registration self-test skipped (-NoSelfTest)."
 }
 else {
-    Write-Host ""
-    Write-Host "Auto-registration self-test FAILED" -ForegroundColor Red
-    Write-Host ("  ACCOUNT_LOGIN returned: '{0}' (exit {1})" -f $selfTestResult, $selfTest.ExitCode)
+    $selfTestSql = "DELETE FROM TB_USER WHERE strAccountID = '_kologin_test'; " +
+                   "SET @ko_out0 = NULL; " +
+                   "CALL ACCOUNT_LOGIN(@ko_out0, '_kologin_test', 'X'); " +
+                   "SELECT @ko_out0; " +
+                   "DELETE FROM TB_USER WHERE strAccountID = '_kologin_test';"
 
-    $selfTestError = Get-MySqlStderrText $selfTest.StdErr
-    if ($selfTestError) { Write-Host $selfTestError }
+    # $dbName is the first non-option argument: without it mysql answers
+    # "ERROR 1046 (3D000): No database selected", because TB_USER is unqualified.
+    $selfTest = Invoke-Native -FilePath docker -ArgumentList @(
+        "compose", "exec", "-T", "mysql", "mysql", "-u$dbUser", "-p$dbPass", $dbName,
+        "-N", "-B", "-e", $selfTestSql)
 
-    Write-Host ""
-    Write-Host "This is the exact statement LogInServer sends when you log in, so a"
-    Write-Host "failure here is why the client says the account does not exist."
-    Write-Host "Refresh the procedures from the repository, then run this script again."
-    Write-Host "Use root, not the application user: the routines were created by root when"
-    Write-Host "the container first imported the database, and only root may replace them"
-    Write-Host "(otherwise: ERROR 1227 ... SYSTEM_USER privilege):"
-    Write-Host ("    cmd /c `"docker compose exec -T mysql mysql -uroot -p{0} {1} < migrations\mysql\004_procedures.sql`"" -f `
-                $dbRootPass, $dbName)
-    throw "ACCOUNT_LOGIN does not work in this database - see the output above."
+    $selfTestResult = $selfTest.StdOut.Trim()
+    if ($selfTest.ExitCode -eq 0 -and $selfTestResult -eq "1") {
+        Write-Host "Auto-registration self-test: ok (ACCOUNT_LOGIN returned 1)"
+    }
+    else {
+        Write-Host ""
+        Write-Host "Auto-registration self-test FAILED" -ForegroundColor Red
+        Write-Host ("  ACCOUNT_LOGIN returned: '{0}' (exit {1})" -f $selfTestResult, $selfTest.ExitCode)
+
+        $selfTestError = Get-MySqlStderrText $selfTest.StdErr
+        if ($selfTestError) { Write-Host $selfTestError }
+
+        Write-Host ""
+        Write-Host "This is the exact statement LogInServer sends when you log in, so a"
+        Write-Host "failure here is why the client says the account does not exist."
+
+        if ($selfTestError -match "does not exist|PROCEDURE|FUNCTION|routine") {
+            Write-Host "The procedure is missing or broken. Reload it from the repository."
+            Write-Host "Use root, not the application user: the routines were created by root"
+            Write-Host "when the container first imported the database, and only root may"
+            Write-Host "replace them (otherwise: ERROR 1227 ... SYSTEM_USER privilege):"
+            Write-Host ("    cmd /c `"docker compose exec -T mysql mysql -uroot -p{0} {1} < migrations\mysql\004_procedures.sql`"" -f `
+                        $dbRootPass, $dbName)
+        }
+        else {
+            Write-Host "The statement itself did not run, so fix the error above first"
+            Write-Host "(connection, database name or privileges); the procedure is not"
+            Write-Host "necessarily at fault."
+        }
+
+        throw "The auto-registration self-test failed - see the output above."
+    }
 }
 
 # ---------------------------------------------------------------------------

@@ -234,6 +234,10 @@ builds the solution, starts MySQL, waits until the schema is actually imported,
 copies `config\*.ini` next to the executables, links `Map\`/`Quests\` there, and
 launches **AIServer → LogInServer → GameServer** from `bin\<Config>\<Platform>\`.
 
+Before launching it runs the `ACCOUNT_LOGIN` statement the login server sends
+(account creation lives there, see §4) and stops if it does not return 1;
+`-NoSelfTest` skips that check.
+
 It also refuses to start a binary that is older than the newest source file, and
 each server prints its own build time as its first line:
 
