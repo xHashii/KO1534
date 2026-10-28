@@ -52,12 +52,13 @@ int CheckSchema(MySqlConnection & connection, const MySqlConfig & config)
 {
 	if (!IsSchemaReady(connection))
 	{
-		printf("%s", SchemaMissingHint(config).c_str());
-		return CountSchemaTables(connection);
+		printf("%s", SchemaMissingHint(connection, config).c_str());
+		return CountSchemaTables(connection) + CountSchemaRoutines(connection);
 	}
 
 	MySqlConfig copy = config;
-	printf("%s", copy.Describe().c_str());
+	printf("%s/%d/%d", copy.Describe().c_str(), kExpectedSchemaTables,
+		kExpectedSchemaRoutines);
 	return 0;
 }
 EOF

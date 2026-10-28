@@ -45,7 +45,7 @@ bool LoginServer::Startup()
 
 	if (!m_DBProcess.IsSchemaReady())
 	{
-		printf("\n%s", SchemaMissingHint(m_dbConfig).c_str());
+		printf("\n%s", SchemaMissingHint(m_DBProcess.GetConnection(), m_dbConfig).c_str());
 		return false;
 	}
 

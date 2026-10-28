@@ -175,29 +175,29 @@ proc: BEGIN
     END IF;
 
     SELECT CASE
-               WHEN strFriend1 IS NULL THEN 1,
-               WHEN strFriend2 IS NULL THEN 2,
-               WHEN strFriend3 IS NULL THEN 3,
-               WHEN strFriend4 IS NULL THEN 4,
-               WHEN strFriend5 IS NULL THEN 5,
-               WHEN strFriend6 IS NULL THEN 6,
-               WHEN strFriend7 IS NULL THEN 7,
-               WHEN strFriend8 IS NULL THEN 8,
-               WHEN strFriend9 IS NULL THEN 9,
-               WHEN strFriend10 IS NULL THEN 10,
-               WHEN strFriend11 IS NULL THEN 11,
-               WHEN strFriend12 IS NULL THEN 12,
-               WHEN strFriend13 IS NULL THEN 13,
-               WHEN strFriend14 IS NULL THEN 14,
-               WHEN strFriend15 IS NULL THEN 15,
-               WHEN strFriend16 IS NULL THEN 16,
-               WHEN strFriend17 IS NULL THEN 17,
-               WHEN strFriend18 IS NULL THEN 18,
-               WHEN strFriend19 IS NULL THEN 19,
-               WHEN strFriend20 IS NULL THEN 20,
-               WHEN strFriend21 IS NULL THEN 21,
-               WHEN strFriend22 IS NULL THEN 22,
-               WHEN strFriend23 IS NULL THEN 23,
+               WHEN strFriend1 IS NULL THEN 1
+               WHEN strFriend2 IS NULL THEN 2
+               WHEN strFriend3 IS NULL THEN 3
+               WHEN strFriend4 IS NULL THEN 4
+               WHEN strFriend5 IS NULL THEN 5
+               WHEN strFriend6 IS NULL THEN 6
+               WHEN strFriend7 IS NULL THEN 7
+               WHEN strFriend8 IS NULL THEN 8
+               WHEN strFriend9 IS NULL THEN 9
+               WHEN strFriend10 IS NULL THEN 10
+               WHEN strFriend11 IS NULL THEN 11
+               WHEN strFriend12 IS NULL THEN 12
+               WHEN strFriend13 IS NULL THEN 13
+               WHEN strFriend14 IS NULL THEN 14
+               WHEN strFriend15 IS NULL THEN 15
+               WHEN strFriend16 IS NULL THEN 16
+               WHEN strFriend17 IS NULL THEN 17
+               WHEN strFriend18 IS NULL THEN 18
+               WHEN strFriend19 IS NULL THEN 19
+               WHEN strFriend20 IS NULL THEN 20
+               WHEN strFriend21 IS NULL THEN 21
+               WHEN strFriend22 IS NULL THEN 22
+               WHEN strFriend23 IS NULL THEN 23
                WHEN strFriend24 IS NULL THEN 24
                ELSE NULL
            END
@@ -256,29 +256,29 @@ proc: BEGIN
     END IF;
 
     SELECT CASE
-               WHEN strFriend1 = p_friend THEN 1,
-               WHEN strFriend2 = p_friend THEN 2,
-               WHEN strFriend3 = p_friend THEN 3,
-               WHEN strFriend4 = p_friend THEN 4,
-               WHEN strFriend5 = p_friend THEN 5,
-               WHEN strFriend6 = p_friend THEN 6,
-               WHEN strFriend7 = p_friend THEN 7,
-               WHEN strFriend8 = p_friend THEN 8,
-               WHEN strFriend9 = p_friend THEN 9,
-               WHEN strFriend10 = p_friend THEN 10,
-               WHEN strFriend11 = p_friend THEN 11,
-               WHEN strFriend12 = p_friend THEN 12,
-               WHEN strFriend13 = p_friend THEN 13,
-               WHEN strFriend14 = p_friend THEN 14,
-               WHEN strFriend15 = p_friend THEN 15,
-               WHEN strFriend16 = p_friend THEN 16,
-               WHEN strFriend17 = p_friend THEN 17,
-               WHEN strFriend18 = p_friend THEN 18,
-               WHEN strFriend19 = p_friend THEN 19,
-               WHEN strFriend20 = p_friend THEN 20,
-               WHEN strFriend21 = p_friend THEN 21,
-               WHEN strFriend22 = p_friend THEN 22,
-               WHEN strFriend23 = p_friend THEN 23,
+               WHEN strFriend1 = p_friend THEN 1
+               WHEN strFriend2 = p_friend THEN 2
+               WHEN strFriend3 = p_friend THEN 3
+               WHEN strFriend4 = p_friend THEN 4
+               WHEN strFriend5 = p_friend THEN 5
+               WHEN strFriend6 = p_friend THEN 6
+               WHEN strFriend7 = p_friend THEN 7
+               WHEN strFriend8 = p_friend THEN 8
+               WHEN strFriend9 = p_friend THEN 9
+               WHEN strFriend10 = p_friend THEN 10
+               WHEN strFriend11 = p_friend THEN 11
+               WHEN strFriend12 = p_friend THEN 12
+               WHEN strFriend13 = p_friend THEN 13
+               WHEN strFriend14 = p_friend THEN 14
+               WHEN strFriend15 = p_friend THEN 15
+               WHEN strFriend16 = p_friend THEN 16
+               WHEN strFriend17 = p_friend THEN 17
+               WHEN strFriend18 = p_friend THEN 18
+               WHEN strFriend19 = p_friend THEN 19
+               WHEN strFriend20 = p_friend THEN 20
+               WHEN strFriend21 = p_friend THEN 21
+               WHEN strFriend22 = p_friend THEN 22
+               WHEN strFriend23 = p_friend THEN 23
                WHEN strFriend24 = p_friend THEN 24
                ELSE NULL
            END

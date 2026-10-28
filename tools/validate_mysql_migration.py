@@ -188,6 +188,95 @@ def check_table_references(path, body, schema):
         err("%s: routine references unknown table `%s`" % (os.path.basename(path), name))
 
 
+def _balanced(text, start):
+    """Text inside the parenthesis that opens at text[start], or None."""
+    depth, i, n = 0, start, len(text)
+    in_str = False
+    while i < n:
+        c = text[i]
+        if in_str:
+            if c == "\\":
+                i += 2
+                continue
+            if c == "'":
+                if i + 1 < n and text[i + 1] == "'":
+                    i += 2
+                    continue
+                in_str = False
+            i += 1
+            continue
+        if c == "'":
+            in_str = True
+        elif c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return text[start + 1:i]
+        i += 1
+    return None
+
+
+INSERT_COLS_RE = re.compile(
+    r"INSERT\s+(?:IGNORE\s+)?INTO\s+`?(\w+)`?\s*\(", re.I)
+UPDATE_SET_RE = re.compile(
+    r"\bUPDATE\s+`?(\w+)`?\s+SET\s+", re.I)
+
+
+def check_column_references(path, body, schema):
+    """INSERT column lists and UPDATE SET targets must exist in the schema.
+
+    Only the unambiguous forms are checked - the left-hand side of an
+    assignment - so aliases and expressions cannot produce false positives.
+    A column list is also compared against the VALUES tuple it is paired with,
+    which is the other classic routine bug (one column too many/few).
+    """
+    name = os.path.basename(path)
+
+    for m in INSERT_COLS_RE.finditer(body):
+        table = m.group(1)
+        columns = schema.get(table)
+        if columns is None:
+            continue
+        open_paren = m.end() - 1
+        inside = _balanced(body, open_paren)
+        if inside is None:
+            err("%s: unbalanced column list in INSERT INTO %s" % (name, table))
+            continue
+        cols = [c.strip().strip("`") for c in inside.replace("\n", " ").split(",")]
+        if any(not re.match(r"^\w+$", c) for c in cols):
+            continue                       # not a plain column list
+        for col in cols:
+            if col not in columns:
+                err("%s: INSERT INTO %s uses unknown column `%s`" % (name, table, col))
+
+        rest = body[m.end():]
+        vm = re.match(r"\s*VALUES\s*\(", rest, re.I)
+        if vm:
+            values = _balanced(rest, rest.index("(", 6))
+            if values is not None:
+                vals = split_values(values)
+                if len(vals) != len(cols):
+                    err("%s: INSERT INTO %s has %d columns but %d values"
+                        % (name, table, len(cols), len(vals)))
+
+    for m in UPDATE_SET_RE.finditer(body):
+        table = m.group(1)
+        columns = schema.get(table)
+        if columns is None:
+            continue
+        # the SET clause runs to WHERE / ; / END at this nesting level
+        rest = body[m.end():]
+        stop = re.search(r"\bWHERE\b|;|\bEND\b", rest, re.I)
+        clause = rest[:stop.start()] if stop else rest
+        for assignment in split_values(clause):
+            lhs = assignment.split("=")[0].strip().strip("`")
+            if not re.match(r"^\w+$", lhs):
+                continue
+            if lhs not in columns:
+                err("%s: UPDATE %s SET uses unknown column `%s`" % (name, table, lhs))
+
+
 def validate_routines(path):
     text = open(path, encoding="latin-1").read()
     bodies = re.findall(r"DELIMITER \$\$(.*?)DELIMITER ;", text, re.S)
@@ -205,6 +294,14 @@ def validate_routines(path):
         n_if = len(re.findall(r"\bIF\b(?!\()(?!\s+(?:NOT\s+)?EXISTS)", body)) - n_end_if  # skip IF() and IF [NOT] EXISTS
         if n_if != n_end_if:
             err("%s: IF/END IF mismatch in a routine (%d vs %d)" % (path, n_if, n_end_if))
+
+        # A comma before WHEN is never legal: CASE branches are separated by
+        # nothing at all.  This is what broke 006 once ("THEN 1, WHEN ..."),
+        # and it is cheap to keep out permanently.
+        for m in re.finditer(r",\s*(?:\n\s*)?WHEN\b", body):
+            line = body[:m.start()].count("\n") + 1
+            err("%s: comma before WHEN (CASE branches are not comma separated), near line %d"
+                % (path, line))
 
         n_end_while = len(re.findall(r"\bEND WHILE\b", body))
         n_while = len(re.findall(r"\bWHILE\b", body)) - n_end_while
@@ -263,6 +360,7 @@ def main():
         text = open(os.path.join(MIG, n), encoding="latin-1").read()
         text = re.sub(r"--[^\n]*", "", text)
         check_table_references(os.path.join(MIG, n), text, known)
+        check_column_references(os.path.join(MIG, n), text, schema)
 
     for k, v in stats.items():
         print("%-24s %s" % (k, v))

@@ -174,10 +174,14 @@ instead of silently keeping stale data. The uncompressed `002_data.sql`
 python3 tools/sqlserver_to_mysql.py --routines-dir /tmp/ko/routines
 python3 tools/validate_mysql_migration.py     # static checks, no server needed
 python3 tools/check_call_sites.py             # C++ CALL vs procedure signatures
+python3 tools/check_sql_syntax.py             # parses every statement (needs sqlglot)
 tools/syntax_check_db_layer.sh                # type-checks shared/database on Linux
 ```
 
-Both validators must print `OK` before you import. The gzip is byte-for-byte
+All four must print `OK` before you import. `check_sql_syntax.py` is the one
+that catches grammar mistakes inside stored routines without a MySQL server;
+`sqlglot` is an optional install (`pip install sqlglot`) and the script says so
+instead of failing when it is missing. The gzip is byte-for-byte
 reproducible (`mtime=0`, no stored filename), so regenerating it produces no
 diff; the generator deletes the plain file again on purpose, because the MySQL
 entrypoint would import both copies and the second one would die on duplicate
@@ -207,9 +211,18 @@ anything that is not a throwaway local database, and never commit the result.
 Start order: **AIServer → LogInServer → GameServer**, working directory set to
 the folder containing `data\Map`.
 
-If a server starts before the database is ready, or against an empty schema, it
-says so and names the command to run — it no longer fails somewhere deep inside
-a table load.
+If a server starts before the database is ready, or against an empty *or
+partly imported* schema, it says so — with the table and routine counts — and
+names the command to run. It no longer fails somewhere deep inside a table load.
+
+A failed import does **not** resume: the container stops at the first bad file
+and the next `docker compose up -d` finds a non-empty data directory and skips
+the import. Always reset after a failure:
+
+```powershell
+docker compose down -v
+docker compose up -d
+```
 
 ## 5. Verify
 

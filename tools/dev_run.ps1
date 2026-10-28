@@ -85,18 +85,46 @@ try {
     #    loop is the "wait until the database is actually usable" step; it
     #    fails until the database and the TB_USER table both exist.
     # -----------------------------------------------------------------------
-    $probe = "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='$dbName' AND TABLE_NAME='TB_USER';"
+    # The import is done when the routines are there, not just the tables: a
+    # failed migration file leaves 001/002 applied, so "TB_USER exists" alone
+    # would let the servers start against a half-imported database.
+    $probe = "SELECT CONCAT((SELECT COUNT(*) FROM information_schema.TABLES " +
+             "WHERE TABLE_SCHEMA='$dbName' AND TABLE_TYPE='BASE TABLE'), '/', " +
+             "(SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA='$dbName'));"
+    $expected = "104/118"
+
     Write-Host "Waiting for the schema (first run imports the data: 1-3 minutes)..."
-    Wait-For -What "the KO1534 schema to be imported" -Probe {
-        $count = docker compose exec -T mysql mysql "-u$dbUser" "-p$dbPass" -N -B -e $probe 2>$null
-        return ($count -match "1")
+    $deadline = (Get-Date).AddMinutes(10)
+    $counts = ""
+    while ($true) {
+        # docker inspect is used instead of `compose ps --format` because the
+        # available template fields differ between compose versions.
+        $state = (docker inspect -f "{{.State.Status}}" ko1534-mysql 2>$null) -join ""
+        if ($state -match "exited|dead") {
+            Write-Host ""
+            Write-Host "The MySQL container stopped: the import failed." -ForegroundColor Red
+            Write-Host "See what went wrong:"
+            Write-Host "    docker compose logs --tail 40 mysql"
+            Write-Host "Then reset the volume, because a failed import does NOT resume:"
+            Write-Host "    docker compose down -v"
+            Write-Host "    docker compose up -d"
+            throw "MySQL container exited during the import."
+        }
+
+        $counts = ((docker compose exec -T mysql mysql "-u$dbUser" "-p$dbPass" -N -B -e $probe 2>$null) -join "").Trim()
+        if ($counts -eq $expected) { break }
+
+        if ((Get-Date) -gt $deadline) {
+            throw ("Timed out waiting for the import (tables/routines now: {0}). Check: docker compose logs mysql" -f $counts)
+        }
+        Start-Sleep -Seconds 3
     }
 }
 finally {
     Pop-Location
 }
 
-Write-Host "Database ready: mysql://${dbUser}:***@127.0.0.1:3306/$dbName"
+Write-Host "Database ready: mysql://${dbUser}:***@127.0.0.1:3306/$dbName  (tables/routines: $counts)"
 
 # ---------------------------------------------------------------------------
 # 3. Configuration next to the data (the servers read ./<name>.ini)

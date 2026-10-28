@@ -56,7 +56,7 @@ bool CDBAgent::Connect(const MySqlConfig & accountConfig, const MySqlConfig & ga
 	// table load fails later and the cause is invisible.  Say it once, here.
 	if (!IsSchemaReady(*m_GameDB))
 	{
-		printf("\n%s", SchemaMissingHint(gameConfig).c_str());
+		printf("\n%s", SchemaMissingHint(*m_GameDB, gameConfig).c_str());
 		return false;
 	}
 

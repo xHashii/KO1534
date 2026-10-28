@@ -9,6 +9,7 @@ public:
 	bool Connect(const MySqlConfig & config);
 	void ResetErrors() { m_dbConnection.ResetErrors(); }
 	bool IsSchemaReady() { return ::IsSchemaReady(m_dbConnection); }
+	MySqlConnection & GetConnection() { return m_dbConnection; }
 
 	bool LoadVersionList();
 	bool LoadUserCountList();
