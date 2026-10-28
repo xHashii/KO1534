@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "../shared/signal_handler.h"
+#include "../shared/RuntimePaths.h"
 
 CServerDlg * g_pMain;
 static Condition s_hEvent;
@@ -10,6 +11,15 @@ bool g_bRunning = true;
 
 int main()
 {
+	// Resolve ./<server>.ini, ./Map and ./Quests before anything reads a
+	// relative path: they are looked up from the working directory, which is
+	// not necessarily the one the process was started in.
+	if (!ko_runtime::SelectRuntimeDirectory("AIServer.ini"))
+	{
+		system("pause");
+		return 1;
+	}
+
 	SetConsoleTitle("AI Server v" STRINGIFY(__VERSION));
 
 	// Override the console handler

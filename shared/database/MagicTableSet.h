@@ -7,7 +7,7 @@ public:
 		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAGIC"); }
-	virtual tstring GetColumns() { return _T("MagicNum, BeforeAction, TargetAction, SelfEffect, FlyingEffect, TargetEffect, Moral, SkillLevel, Skill, Msp, HP, ItemGroup, UseItem, CastTime, ReCastTime, SuccessRate, Type1, Type2, Range, UseStanding, Etc"); }
+	virtual tstring GetColumns() { return _T("MagicNum, BeforeAction, TargetAction, SelfEffect, FlyingEffect, TargetEffect, Moral, SkillLevel, Skill, Msp, HP, ItemGroup, UseItem, CastTime, ReCastTime, SuccessRate, Type1, Type2, `Range`, UseStanding, Etc"); }
 
 	virtual bool Fetch()
 	{

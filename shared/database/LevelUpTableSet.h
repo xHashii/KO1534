@@ -7,7 +7,7 @@ public:
 		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("LEVEL_UP"); }
-	virtual tstring GetColumns() { return _T("[Level], [Exp]"); }
+	virtual tstring GetColumns() { return _T("`Level`, `Exp`"); }
 
 	virtual bool Fetch()
 	{

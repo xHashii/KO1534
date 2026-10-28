@@ -108,6 +108,46 @@ The game server reads `[ACCOUNT_DATABASE]` for the account tables and falls back
 to `[DATABASE]` if it is missing. Old `[ODBC]` / `[GAME_ODBC]` / `[ACCOUNT_ODBC]`
 sections are no longer read — if they are still present they are ignored.
 
+## SQL that SQL Server accepted and MySQL does not
+
+The migration converted the dump and the stored routines, but the servers also
+build statements in C++, and those had never been executed until the first real
+run. Both servers died on the first table they load:
+
+```
+AIServer   : Loaded table [MAGIC]
+             ERROR : ... near 'Range, UseStanding, Etc FROM MAGIC'
+GameServer : Loaded table [ITEM]
+             ERROR : ... near 'Range, Weight, Duration, ... FROM ITEM'
+```
+
+Four kinds of statement had to be rewritten. All are SQL Server extensions:
+
+| written for SQL Server | why it fails on MySQL 8 | now |
+|---|---|---|
+| `SELECT Num, Range, Weight …` | `RANGE` is a **reserved word** since 8.0 | `` `Range` `` |
+| `SELECT [Level], [Exp] FROM LEVEL_UP` | `[…]` is array syntax, not an identifier | `` `Level`, `Exp` `` |
+| `SET Loyalty += %d` | no compound assignment in `SET` | `SET Loyalty = Loyalty + %d` |
+| `DATEDIFF(HOUR, dtUpdateTime, getdate())` | `DATEDIFF` takes two dates; the unit form is T-SQL | `TIMESTAMPDIFF(HOUR, dtUpdateTime, NOW())` |
+| `SELECT TOP(10) … ISNULL(x, 0) … FULL OUTER JOIN` | `LIMIT`, `IFNULL`, and no `FULL OUTER JOIN` | `… IFNULL(…) … LEFT JOIN … ORDER BY … LIMIT 10` |
+
+Only three columns of the whole schema (1022 in `001_schema.sql`) are reserved
+words: `Range`, `Rank`, `group`. `Range` was the one in the table lists;
+`GetColumns()` in `ItemTableSet.h`, `MagicTableSet.h` and `MagicType1Set.h` now
+writes it back-quoted, and `MySqlRecordset::Read()` quotes every plain
+identifier in the list and the table name defensively, which also converts any
+`[Name]` it is handed.
+
+`tools/check_inline_sql.py` checks this without a server: every
+`GetColumns()` column must exist in the table that `GetTableName()` names, must
+not be an unquoted reserved word, and every SQL literal in the C++ is scanned
+for T-SQL constructs. `tools/check_sql_syntax.py` parses the same literals with
+sqlglot as MySQL, which is how `SET x += 1` above was found.
+
+Three procedures are defined but never called from the C++ (`INSERT_CURRENTUSER`,
+`LOAD_SEALED_ITEM_DATA`, `SKILLSHORTCUT_LOAD`), so nothing has exercised them yet;
+`tools/check_call_sites.py` reports them on every run.
+
 ## Verification status
 
 | item | status |

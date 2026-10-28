@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "MySqlConnection.h"
 #include "MySqlRecordset.h"
+#include "SqlIdentifiers.h"
 
 MySqlRecordset::MySqlRecordset(MySqlConnection * dbConnection) : _dbConnection(dbConnection)
 {
@@ -20,9 +21,11 @@ TCHAR * MySqlRecordset::Read(bool bAllowEmptyTable /*= false*/)
 	// Build statement
 	tstring szSQL = _T("SELECT ");
 	
-	szSQL += GetColumns();
+	// MySQL 8 reserves RANGE, so an unquoted column list fails with a syntax
+	// error on the table name that follows it.
+	szSQL += ko_sql::QuoteIdentifierList(GetColumns());
 	szSQL += _T(" FROM ");
-	szSQL += GetTableName();
+	szSQL += ko_sql::QuoteIdentifier(GetTableName());
 
 	tstring szWhereClause = GetWhereClause();
 	// Do we have a where clause? Include it.

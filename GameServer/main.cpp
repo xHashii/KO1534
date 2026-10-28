@@ -2,6 +2,7 @@
 #include "../shared/Condition.h"
 #include "ConsoleInputThread.h"
 #include "../shared/signal_handler.h"
+#include "../shared/RuntimePaths.h"
 
 CGameServerDlg * g_pMain;
 static Condition s_hEvent;
@@ -12,6 +13,15 @@ bool g_bRunning = true;
 
 int main()
 {
+	// Resolve ./<server>.ini, ./Map and ./Quests before anything reads a
+	// relative path: they are looked up from the working directory, which is
+	// not necessarily the one the process was started in.
+	if (!ko_runtime::SelectRuntimeDirectory("GameServer.ini"))
+	{
+		system("pause");
+		return 1;
+	}
+
 	SetConsoleTitle("Game Server v" STRINGIFY(__VERSION) " Max Online :" STRINGIFY(MAX_USER));
 
 	// Override the console handler

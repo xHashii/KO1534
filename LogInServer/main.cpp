@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "../shared/signal_handler.h"
+#include "../shared/RuntimePaths.h"
 
 LoginServer * g_pMain;
 static Condition s_hEvent;
@@ -9,6 +10,16 @@ BOOL WINAPI _ConsoleHandler(DWORD dwCtrlType);
 
 int main()
 {
+	// Resolve ./<server>.ini, ./Map and ./Quests before anything reads a
+	// relative path: they are looked up from the working directory, which is
+	// not necessarily the one the process was started in.
+	// The login server reads no map data, so it only needs its own .ini.
+	if (!ko_runtime::SelectRuntimeDirectory("LogInServer.ini", false))
+	{
+		system("pause");
+		return 1;
+	}
+
 	SetConsoleTitle("LogIn Server v" STRINGIFY(__VERSION));
 
 	// Override the console handler

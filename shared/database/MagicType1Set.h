@@ -7,7 +7,7 @@ public:
 		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAGIC_TYPE1"); }
-	virtual tstring GetColumns() { return _T("iNum, Type, HitRate, Hit, AddDamage, Delay, ComboType, ComboCount, ComboDamage, Range"); }
+	virtual tstring GetColumns() { return _T("iNum, Type, HitRate, Hit, AddDamage, Delay, ComboType, ComboCount, ComboDamage, `Range`"); }
 
 	virtual bool Fetch()
 	{

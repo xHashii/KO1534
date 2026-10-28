@@ -158,28 +158,53 @@ powershell -ExecutionPolicy Bypass -File tools\setup_database.ps1
 
 ### Where the servers look for files
 
-Every path below is relative to the **working directory of the process**, not to
-the folder the `.exe` is in. The repository's `data\` is that directory:
+Every runtime path is relative to the **working directory of the process**, not
+to the folder the `.exe` is in:
+
+| what | opened as |
+|---|---|
+| `GameServer.ini`, `LogInServer.ini`, `AIServer.ini` | `./<name>.ini` |
+| zone data | `./map/*.smd`, `./map/*.aievt` |
+| quest scripts | `./Quests/*.lua` |
+| log directory | `./Logs/` (created on startup) |
+| `Notice.txt`, `Notice_up.txt` | `./` — optional, missing is not an error |
+
+The intended layout is therefore **everything beside the `.exe`**, in the folder
+you build into (`bin\Debug\Win32`):
 
 ```
-data\                       <- start all three servers here
-├── GameServer.ini           read as ./GameServer.ini
-├── LogInServer.ini          read as ./LogInServer.ini
-├── AIServer.ini             read as ./AIServer.ini
-├── Map\                     read as ./map/  (case-insensitive on Windows)
-│   ├── *.smd                one per zone, named by ZONE_INFO.strZoneName
-│   ├── *.aievt              room-event script per ZONE_INFO.RoomEvent
-│   └── WarpGateEditor.exe   shipped with the original data, unused at runtime
-├── Quests\                  read as ./Quests/
-│   └── *.lua                named by QUEST_HELPER.strLuaFilename
-├── Logs\                    created on startup
-├── Notice.txt               optional, missing is not an error
-└── Notice_up.txt            optional
+bin\Debug\Win32\
+├── GameServer.exe  LogInServer.exe  AIServer.exe
+├── GameServer.ini           copied from config\ by tools\dev_run.ps1
+├── LogInServer.ini
+├── AIServer.ini
+├── Map\                     junction to data\Map   (101 MB, not copied)
+├── Quests\                  junction to data\Quests (3.2 MB)
+└── Logs\                    created on startup
 ```
 
-`config\*.ini` is a *copy source* — the servers never read `config\`, they read
-`./<name>.ini`. `tools\dev_run.ps1` copies the three files into `data\` for you
-and refuses to launch if `Map\` or `Quests\` are missing.
+`tools\dev_run.ps1` builds that folder for you: it copies `config\*.ini` next
+to the executables, creates `Map\` and `Quests\` junctions to `data\`, and
+starts each server with `bin\Debug\Win32` as its working directory.
+
+Starting the `.exe` by hand (double-click, or from any other directory) also
+works: each server begins by looking for a directory that contains `Map` and
+`Quests` — the current directory first, then its own folder, then `data\`
+below and the parents of the `.exe` — and switches to the one it finds, printing
+
+```
+Working directory: C:\...\bin\Debug\Win32
+```
+
+as its first line. If it finds none it prints every path it tried and exits, so
+a missing `Map\` never turns into a silent "zone not found" later. The `.ini`
+files are not searched for: they must be in that directory, and the server warns
+if its own `.ini` is missing there.
+
+`config\*.ini` is a *copy source* — the servers never read `config\`. Edit the
+copy beside the executables (or `config\` and delete the copy, and `dev_run.ps1`
+puts the new one back). An earlier version of this script copied the `.ini` files
+into `data\`; those copies are no longer read and can be deleted.
 
 Which server needs what:
 
@@ -233,10 +258,17 @@ python3 tools/validate_mysql_migration.py     # static checks, no server needed
 python3 tools/check_call_sites.py             # C++ CALL vs procedure signatures
 python3 tools/check_sql_syntax.py             # parses every statement (needs sqlglot)
 python3 tools/check_projects.py               # .vcxproj/.sln consistency (paths, /ZI vs /Gy-)
+python3 tools/check_inline_sql.py             # SQL built inside the C++, vs the schema
 tools/syntax_check_db_layer.sh                # type-checks shared/database on Linux
+tools/tests/run_tests.sh                      # C++ unit tests (quoting, runtime paths)
 ```
 
-All five must print `OK` before you build or import. `check_sql_syntax.py` is the one
+All seven must print `OK` before you build or import. `check_inline_sql.py` is the
+one that catches the MySQL-8 problems inside hand-written statements: a reserved
+word used as a column name (`Range`), T-SQL spellings (`[Level]`, `TOP(n)`,
+`ISNULL()`, `FULL OUTER JOIN`, `DATEDIFF`, `getdate()`), and column names that
+the schema does not have. It checks all 65 `GetColumns()` lists (854 column names) column by
+column against the table each list belongs to. `check_sql_syntax.py` is the one
 that catches grammar mistakes inside stored routines without a MySQL server;
 `sqlglot` is an optional install (`pip install sqlglot`) and the script says so
 instead of failing when it is missing. The gzip is byte-for-byte

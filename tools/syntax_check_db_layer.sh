@@ -35,7 +35,9 @@ cp "$SHIM"/*.h "$WORK/shim/"
 cp "$ROOT/shared/tstring.h" "$WORK/tstring.h"
 cp "$SRC"/MySqlCommand.h "$SRC"/MySqlCommand.cpp \
    "$SRC"/MySqlConnection.h "$SRC"/MySqlConnection.cpp \
-   "$SRC"/MySqlParameter.h "$SRC"/DbTypes.h "$SRC"/SchemaCheck.h "$WORK/"
+   "$SRC"/MySqlRecordset.h "$SRC"/MySqlRecordset.cpp \
+   "$SRC"/MySqlParameter.h "$SRC"/DbTypes.h "$SRC"/SchemaCheck.h \
+   "$SRC"/SqlIdentifiers.h "$WORK/"
 
 cd "$WORK" || exit 1
 
@@ -43,7 +45,8 @@ cd "$WORK" || exit 1
 sed -i 's|#include "stdafx.h"|#include "shim/stdafx.h"|;
         s|#include <mysql.h>|#include "shim/mysql.h"|;
         s|#include "../tstring.h"|#include "tstring.h"|' \
-	MySqlCommand.cpp MySqlConnection.cpp MySqlCommand.h MySqlConnection.h
+	MySqlCommand.cpp MySqlConnection.cpp MySqlRecordset.cpp \
+	MySqlCommand.h MySqlConnection.h MySqlRecordset.h SqlIdentifiers.h
 
 # Instantiates every helper in SchemaCheck.h so a broken signature there fails
 # here instead of inside a Windows build.
@@ -89,7 +92,7 @@ EOF
 cd "$WORK" || exit 1
 
 status=0
-for f in MySqlCommand.cpp MySqlConnection.cpp schema_check_tu.cpp; do
+for f in MySqlCommand.cpp MySqlConnection.cpp MySqlRecordset.cpp schema_check_tu.cpp; do
 	echo "checking $f"
 	if ! g++ -std=c++14 -Wall -Wextra -Wno-unused-parameter -fsyntax-only \
 			-I. -Ishim "$f"; then

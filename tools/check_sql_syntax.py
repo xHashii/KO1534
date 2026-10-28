@@ -262,6 +262,67 @@ def check_file(path):
                     errors.append((piece, err))
     return errors
 
+# ---------------------------------------------------------------------------
+#  Inline SQL in the C++ sources.
+#
+#  The migration files are only half of the SQL: DBAgent.cpp, DBProcess.cpp and
+#  the other handlers keep their statements in C++ string literals, and those
+#  were written for SQL Server.  The 'Range' crash came from a column list, and
+#  "SET x += 1" plus "[Level]" from these literals, so they are parsed too.
+# ---------------------------------------------------------------------------
+CPP_DIRS = ("GameServer", "AIServer", "LogInServer", "shared")
+SQL_LITERAL = re.compile(r'_T\(\s*"((?:[^"\\]|\\.)*)"')
+SQL_START = re.compile(r"^\s*(SELECT|INSERT|UPDATE|DELETE|CALL)\b", re.I)
+
+
+def cpp_sql_literals():
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    for folder in CPP_DIRS:
+        for dirpath, _, names in os.walk(os.path.join(root, folder)):
+            for name in sorted(names):
+                if not name.endswith((".cpp", ".h")):
+                    continue
+                path = os.path.join(dirpath, name)
+                data = open(path, "rb").read()
+                try:
+                    text = data.decode("utf-8")
+                except UnicodeDecodeError:
+                    text = data.decode("latin-1")
+                for m in SQL_LITERAL.finditer(text):
+                    literal = m.group(1)
+                    if SQL_START.match(literal):
+                        yield path, text[:m.start()].count("\n") + 1, literal
+
+
+def check_cpp_literals():
+    """Return [(where, literal, error)] for literals that do not parse."""
+    bad = []
+    total = 0
+    for path, line, literal in cpp_sql_literals():
+        total += 1
+        # The literals are printf/string_format templates: %d, %s, %u and ? are
+        # bound at run time, so both a numeric and a quoted substitution are
+        # tried before calling it a failure.
+        attempts = []
+        for quoted in ("'x'", "1"):
+            attempts.append(literal.replace("%d", "1").replace("%s", quoted)
+                                     .replace("%u", "1").replace("? ", quoted + " ")
+                                     .replace("=?", "=" + quoted))
+        error = None
+        for attempt in attempts:
+            try:
+                sqlglot.parse_one(attempt, read="mysql")
+                error = None
+                break
+            except Exception as e:     # sqlglot raises ParseError
+                error = e
+        if error is not None:
+            bad.append(("%s:%d" % (os.path.relpath(path, os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__)))), line), literal,
+                str(error).splitlines()[0][:160]))
+    return total, bad
+
+
 
 def main(argv):
     files = [a for a in argv if not a.startswith("-")]
@@ -282,8 +343,16 @@ def main(argv):
             snippet = " ".join(strip_comments(piece).split())[:110]
             print("    %s\n      in: %s" % (err, snippet))
 
+    literal_count, literal_errors = check_cpp_literals()
+    print("%-40s %s" % ("C++ inline SQL", "%d literal(s) ok" % literal_count
+                        if not literal_errors else "%d problem(s)" % len(literal_errors)))
+    for where, literal, error in literal_errors:
+        total += 1
+        print("    %s: %s\n      in: %s" % (where, error, " ".join(literal.split())[:110]))
+
     if total == 0:
-        print("\nOK: every plain SQL statement parses as MySQL (sqlglot)")
+        print("\nOK: every SQL statement parses as MySQL (sqlglot): migration files"
+              " and %d C++ literals" % literal_count)
         return 0
     print("\nFAIL: %d statement(s) do not parse - fix them before importing" % total)
     return 1

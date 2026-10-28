@@ -8,13 +8,19 @@
       1. `docker compose up -d` and wait until MySQL answers.
       2. Wait until the KO1534 schema is fully imported (first run imports
          001..007 automatically; that takes a couple of minutes).
-      3. Copy config\*.ini into data\ if they are not there yet, so the
-         servers find ./GameServer.ini and ./map from their working directory.
-      4. Start AIServer, LogInServer and GameServer from bin\<Config>\Win32\
-         with data\ as the working directory.
+      3. Deploy the runtime files next to the executables: copy config\*.ini
+         into bin\<Config>\<Platform>\ and link Map\ and Quests\ to data\,
+         so each server finds ./<name>.ini, ./map and ./Quests beside the .exe.
+      4. Start AIServer, LogInServer and GameServer from that folder, with it
+         as the working directory.
 
 .PARAMETER Configuration
     Debug (default) or Release - which build output to launch.
+
+.PARAMETER Platform
+    Win32 (default) or x64 - must match the platform you built. The MySQL
+    client library shipped with MySQL 8.x is x64-only, so x64 is the usual
+    choice.
 
 .PARAMETER NoLaunch
     Only prepare the database and the configuration, do not start the servers.
@@ -28,6 +34,8 @@
 param(
     [ValidateSet("Debug", "Release")]
     [string] $Configuration = "Debug",
+    [ValidateSet("Win32", "x64")]
+    [string] $Platform = "Win32",
     [switch] $NoLaunch,
     [switch] $ResetDatabase
 )
@@ -35,7 +43,16 @@ param(
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $dataDir = Join-Path $repo "data"
-$binDir = Join-Path $repo ("bin\{0}\Win32" -f $Configuration)
+# Search the selected platform first, then the other one: the output folder
+# differs between Win32 and x64 builds and the wrong guess wastes a run.
+$binDirs = @(
+    (Join-Path $repo ("bin\{0}\{1}" -f $Configuration, $Platform)),
+    (Join-Path $repo ("bin\{0}\{1}" -f $Configuration, $(if ($Platform -eq "Win32") { "x64" } else { "Win32" })))
+)
+$binDir = $binDirs[0]
+foreach ($candidate in $binDirs) {
+    if (Test-Path (Join-Path $candidate "GameServer.exe")) { $binDir = $candidate; break }
+}
 
 # Credentials: defaults, overridable through .env (same file docker compose reads).
 function Get-DotEnv([string] $Key, [string] $Default) {
@@ -127,13 +144,34 @@ finally {
 Write-Host "Database ready: mysql://${dbUser}:***@127.0.0.1:3306/$dbName  (tables/routines: $counts)"
 
 # ---------------------------------------------------------------------------
-# 3. Configuration next to the data (the servers read ./<name>.ini)
+# 3. Runtime files next to the executables.
+#    The servers read ./<name>.ini, ./Map and ./Quests from the working
+#    directory, so everything they need is deployed into $binDir and the
+#    process is started there - no separate data\ layout to remember.
 # ---------------------------------------------------------------------------
 foreach ($ini in @("AIServer.ini", "GameServer.ini", "LogInServer.ini")) {
-    $target = Join-Path $dataDir $ini
+    $target = Join-Path $binDir $ini
     if (-not (Test-Path $target)) {
         Copy-Item (Join-Path $repo "config\$ini") $target
         Write-Host "Wrote $target"
+    }
+}
+
+# Map\ is 100 MB and Quests\ is a few thousand .lua files, so they are linked
+# rather than copied: the servers see them beside the .exe, git sees data\.
+foreach ($asset in @("Map", "Quests")) {
+    $link = Join-Path $binDir $asset
+    $source = Join-Path $dataDir $asset
+    if (Test-Path $link) { continue }
+    if (-not (Test-Path $source)) { continue }
+    try {
+        New-Item -ItemType Junction -Path $link -Target $source -ErrorAction Stop | Out-Null
+        Write-Host "Linked $link -> $source"
+    }
+    catch {
+        # Junction creation can be blocked by policy.  Not fatal: the servers
+        # walk up from the .exe and find data\Map and data\Quests themselves.
+        Write-Host "Could not link $link ($($_.Exception.Message)); the servers will find $source on their own"
     }
 }
 
@@ -153,26 +191,28 @@ if ($env:MYSQL_ROOT) {
 }
 
 # ---------------------------------------------------------------------------
-# 3c. Runtime layout: the servers resolve map/, Quests/ and their .ini files
-#     relative to the *working directory*, not to the .exe.
+# 3c. Runtime layout check: what the servers will actually see.
 # ---------------------------------------------------------------------------
 $missing = @()
-foreach ($required in @("GameServer.ini", "LogInServer.ini", "AIServer.ini", "Map", "Quests")) {
-    if (-not (Test-Path (Join-Path $dataDir $required))) { $missing += $required }
+foreach ($required in @("GameServer.ini", "LogInServer.ini", "AIServer.ini")) {
+    if (-not (Test-Path (Join-Path $binDir $required))) { $missing += $required }
 }
 if ($missing) {
-    throw ("$dataDir is missing: " + ($missing -join ", ") + "`n" +
-           "The servers read ./map/, ./Quests/ and their .ini files from the working directory.`n" +
-           "Expected layout:`n" +
-           "    data\GameServer.ini  LogInServer.ini  AIServer.ini`n" +
-           "    data\Map\*.smd      (30 zones in ZONE_INFO)`n" +
-           "    data\Quests\*.lua    (script for each quest NPC)`n" +
-           "Run: git status   (Map/ and Quests/ are tracked; only the .ini copies are new)")
+    throw ("$binDir is missing: " + ($missing -join ", ") + "`n" +
+           "The servers read ./<name>.ini from the working directory, which is the folder the .exe lives in.`n" +
+           "Expected: $binDir\GameServer.ini, LogInServer.ini, AIServer.ini`n" +
+           "They are copied from config\ by this script; copy them by hand if you launch the .exe directly.")
+}
+
+foreach ($asset in @("Map", "Quests")) {
+    if (-not (Test-Path (Join-Path $binDir $asset))) {
+        Write-Host "Note: $binDir\$asset is not present; the server will fall back to $dataDir\$asset"
+    }
 }
 
 $mapCount = (Get-ChildItem (Join-Path $dataDir "Map") -Filter *.smd -ErrorAction SilentlyContinue).Count
 $questCount = (Get-ChildItem (Join-Path $dataDir "Quests") -Filter *.lua -ErrorAction SilentlyContinue).Count
-Write-Host "Working directory: $dataDir"
+Write-Host "Working directory: $binDir"
 Write-Host ("  Map\    {0} .smd, {1} .aievt" -f $mapCount,
     (Get-ChildItem (Join-Path $dataDir "Map") -Filter *.aievt -ErrorAction SilentlyContinue).Count)
 Write-Host ("  Quests\ {0} .lua" -f $questCount)
@@ -192,13 +232,14 @@ $exes = @(
 
 foreach ($exe in $exes) {
     if (-not (Test-Path $exe.Path)) {
-        throw "$($exe.Path) not found. Build the solution in Visual Studio 2022 (Win32/$Configuration) first."
+        throw ("{0} not found. Build the solution in Visual Studio 2022 ({1}/{2}) first." -f `
+               $exe.Path, $Platform, $Configuration)
     }
 }
 
 foreach ($exe in $exes) {
-    Write-Host ("Starting {0} (working directory: {1})" -f $exe.Name, $dataDir)
-    Start-Process -FilePath $exe.Path -WorkingDirectory $dataDir
+    Write-Host ("Starting {0} (working directory: {1})" -f $exe.Name, $binDir)
+    Start-Process -FilePath $exe.Path -WorkingDirectory $binDir
     if ($exe.Wait -gt 0) { Start-Sleep -Seconds $exe.Wait }
 }
 

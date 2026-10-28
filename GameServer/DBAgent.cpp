@@ -165,7 +165,7 @@ void CDBAgent::LoadCharInfo(string & strCharID, ByteBuffer & result)
 
 		dbCommand->AddParameter(SQL_PARAM_INPUT, strCharID.c_str(), strCharID.length());
 
-		if (!dbCommand->Execute(_T("SELECT Race, Class, HairRGB, [Level], Face, Zone, strItem, strItemTime FROM USERDATA WHERE strUserID = ?")))
+		if (!dbCommand->Execute(_T("SELECT Race, Class, HairRGB, `Level`, Face, Zone, strItem, strItemTime FROM USERDATA WHERE strUserID = ?")))
 			ReportSQLError(m_GameDB->GetError());
 
 		if (dbCommand->hasData())
@@ -1184,7 +1184,7 @@ bool CDBAgent::LoadKnightsAllMembers(uint16 sClanID, _KNIGHTS_USER* p)
 		return false;
 
 	dbCommand->AddParameter(SQL_PARAM_INPUT, p->strUserName.c_str(), p->strUserName.length());
-	if (!dbCommand->Execute(string_format(_T("SELECT Fame, [Level], Class, strMemo, DATEDIFF(HOUR,dtUpdateTime,getdate()) As dtUpdateTime FROM USERDATA WHERE Knights = %d AND strUserID = ?"), sClanID)))
+	if (!dbCommand->Execute(string_format(_T("SELECT Fame, `Level`, Class, strMemo, TIMESTAMPDIFF(HOUR,dtUpdateTime,NOW()) AS dtUpdateTime FROM USERDATA WHERE Knights = %d AND strUserID = ?"), sClanID)))
 		ReportSQLError(m_GameDB->GetError());
 
 	if (!dbCommand->hasData())
@@ -1319,7 +1319,7 @@ bool CDBAgent::UpdateClanSymbol(uint16 sClanID, uint16 sSymbolSize, char *clanSy
 		return false;
 
 	dbCommand->AddParameter(SQL_PARAM_INPUT, clanSymbol, MAX_KNIGHTS_MARK, SQL_BINARY);
-	if (!dbCommand->Execute(string_format(_T("UPDATE KNIGHTS SET Mark=?, sMarkVersion += 1, sMarkLen=%d WHERE IDNum=%d"), sSymbolSize, sClanID)))
+	if (!dbCommand->Execute(string_format(_T("UPDATE KNIGHTS SET Mark=?, sMarkVersion = sMarkVersion + 1, sMarkLen=%d WHERE IDNum=%d"), sSymbolSize, sClanID)))
 	{
 		ReportSQLError(m_GameDB->GetError());
 		return false;
@@ -1454,7 +1454,7 @@ void CDBAgent::RefundNP(string & strUserID, uint32 nRefundNP)
 		return;
 
 	dbCommand->AddParameter(SQL_PARAM_INPUT, strUserID.c_str(), strUserID.length());
-	if (!dbCommand->Execute(string_format(_T("UPDATE USERDATA SET Loyalty += %d WHERE strUserID = ?"), nRefundNP)))
+	if (!dbCommand->Execute(string_format(_T("UPDATE USERDATA SET Loyalty = Loyalty + %d WHERE strUserID = ?"), nRefundNP)))
 		ReportSQLError(m_GameDB->GetError());
 }
 
@@ -2300,7 +2300,7 @@ void CDBAgent::LoadLadderRankList(Packet & result, uint8 bNation, uint8& count)
 	if (dbCommand.get() == nullptr)
 		return;
 
-	if (!dbCommand->Execute(string_format(_T("SELECT TOP(10)USERDATA.strUserID,  ISNULL(Knights.IDNum, 0 ), ISNULL(Knights.IDName, '' ), ISNULL(Knights.sMarkVersion, '' ) FROM USERDATA FULL OUTER JOIN Knights ON Knights.IDNum = USERDATA.Knights where USERDATA.strUserID IS NOT NULL and USERDATA.Nation = %d and USERDATA.Authority = 1 order by USERDATA.LoyaltyMonthly desc"), bNation)))
+	if (!dbCommand->Execute(string_format(_T("SELECT USERDATA.strUserID, IFNULL(Knights.IDNum, 0), IFNULL(Knights.IDName, ''), IFNULL(Knights.sMarkVersion, '') FROM USERDATA LEFT JOIN Knights ON Knights.IDNum = USERDATA.Knights WHERE USERDATA.strUserID IS NOT NULL AND USERDATA.Nation = %d AND USERDATA.Authority = 1 ORDER BY USERDATA.LoyaltyMonthly DESC LIMIT 10"), bNation)))
 	{
 		ReportSQLError(m_GameDB->GetError());
 		return;
