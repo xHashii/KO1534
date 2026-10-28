@@ -63,7 +63,9 @@ GRANT ALL PRIVILEGES ON KO1534.* TO 'ko1534'@'%';
 
 ## 3. Import
 
-Files are applied in order (`mysql -u ko1534 -p KO1534 < file.sql`):
+Files are applied in order to a **fresh** database (`mysql -u ko1534 -p KO1534 < file.sql`).
+`001_schema.sql` uses plain `CREATE TABLE`, so a second run fails loudly instead
+of silently keeping stale data:
 
 | file | contents |
 |---|---|
