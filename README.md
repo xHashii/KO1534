@@ -305,8 +305,8 @@ PASSWORD = ko1534
 CHARSET = latin1
 ```
 
-`config/*.ini` holds the templates; copy them next to the executables (or into
-`data\`, which `tools\dev_run.ps1` does for you) and edit. The game server
+`config/*.ini` holds the templates; `tools\dev_run.ps1` copies them next to the
+executables (see "Where the servers look for files"), so edit the copy there. The game server
 additionally reads `[ACCOUNT_DATABASE]` (falls back to `[DATABASE]` when
 absent). The committed values are the local Docker setup — change them for
 anything that is not a throwaway local database, and never commit the result.
@@ -326,6 +326,114 @@ the import. Always reset after a failure:
 docker compose down -v
 docker compose up -d
 ```
+
+## 4. Accounts, characters and GM
+
+### Registration is automatic — there is nothing to enable
+
+No registration switch, no web panel, no external account service. The login
+server creates the account itself the first time a name is used:
+
+```
+migrations/mysql/004_procedures.sql   ACCOUNT_LOGIN
+    SELECT COUNT(*) INTO v_count FROM TB_USER WHERE strAccountID = p_accountID;
+    IF v_count = 0 THEN
+        INSERT INTO TB_USER (strAccountID, strPasswd) VALUES (p_accountID, p_passwd);
+```
+
+Call site: `LogInServer/DBProcess.cpp:89`, reached from every login attempt
+(`LoginSession.cpp:91`). Type an account name and password that have never been
+used and the account exists from then on. The same name with a different
+password returns 3 (`AUTH_INVALID`).
+
+A fresh account has no characters: pick a nation in the client and create one
+(`ACCOUNT_CHAR` holds three slots, `strCharID1..3`; `CREATE_CHARACTER` adds the
+`ACCOUNT_CHAR` row itself if it is missing).
+
+Limits enforced before the query runs (`LoginSession.cpp:148`, `MAX_ID_SIZE` /
+`MAX_PW_SIZE` in `shared/globals.h`):
+
+* **account**: letters and digits only — no spaces, `_`, `-` or symbols — 1 to 20
+  characters (`WordGuardSystem`).
+* **password**: at most 28 characters. The client never sends the text: it sends
+  a 28-character hash (`HashPasswordString`), and that hash is what
+  `TB_USER.strPasswd` holds. So never store a plaintext password there — an
+  account created by hand must use the function:
+
+```sql
+-- same result the client produces for password 'test123'
+CALL ACCOUNT_LOGIN(@r, 'tester', HashPasswordString('test123'));
+SELECT @r;          -- 1 = account created (or password matched), 3 = wrong password
+```
+
+### The supplied data already has an account, and its character is a GM
+
+`migrations/mysql/002_data.sql.gz` ships one account and one character:
+
+| table | values |
+|---|---|
+| `TB_USER` | `admin`, `strPasswd = RQ4F74043XIKH1` |
+| `ACCOUNT_CHAR` | `admin` → `bNation 2`, one slot, `strCharID1 = GiR` |
+| `USERDATA` | `GiR`, level 79, zone 21, `Authority = 0` |
+
+`RQ4F74043XIKH1` is what `HashPasswordString('admin')` returns (the port of that
+function was checked against this row), so **log in as `admin` / `admin` and pick
+`GiR`** — that character is already a game master.
+
+### Authority: 0 is the GM, 1 is a player
+
+`shared/globals.h` (`AuthorityTypes`) and `GameServer/User.h:354`:
+
+| value | meaning |
+|---|---|
+| 0 | `AUTHORITY_GAME_MASTER` — full GM |
+| 1 | `AUTHORITY_PLAYER` |
+| 11 | muted |
+| 12 | attack disabled |
+| 250 | limited GM |
+| 255 | banned |
+
+Authority is **per character** (`USERDATA.Authority`), read when the character is
+loaded (`DBAgent.cpp:380`). `TB_USER.strAuthority` is a different, account-level
+flag (a value of 9 blocks login in `ACCOUNT_PREMIUM`).
+
+One thing to know before letting anyone else play: `USERDATA.Authority` has
+`DEFAULT 0` and `CREATE_CHARACTER` does not set it, so **every new character is
+created as a GM**. The original server relied on its website to set 1, which is
+what a panel was for. Without one:
+
+```sql
+SELECT strUserID, Authority, Level, Zone FROM USERDATA;          -- who is what
+UPDATE USERDATA SET Authority = 1 WHERE strUserID = 'SomePlayer'; -- make normal
+UPDATE USERDATA SET Authority = 0 WHERE strUserID = 'GiR';        -- make GM
+```
+
+### GM commands
+
+Typed in normal chat with a `+` prefix (`CHAT_COMMAND_PREFIX` in
+`GameServer/ChatHandler.h`), and only when `isGM()` is true — the whole table is
+in `GameServer/ChatHandler.cpp:12` and `:60`.
+
+| command | does |
+|---|---|
+| `+give_item <char> <itemID> [count]` | gives an item (item IDs are `ITEM.Num`) |
+| `+zonechange <zoneID>` | teleport to a zone (`ZONE_INFO`) |
+| `+monsummon <id>` / `+npcsummon <id>` / `+monkill` | spawn / kill monsters and NPCs |
+| `+exp_change <char> <n>` / `+noah_change <char> <n>` / `+np_change <char> <n>` | add (or subtract, with a negative number) exp / gold / loyalty to an **online** player |
+| `+exp_add <pct>` / `+np_add <pct>` / `+money_add <pct>` | server-wide event bonuses (0 ends) |
+| `+notice <text>` / `+count` / `+kill <char>` / `+permitconnect <char>` | broadcast, who is online, disconnect, unban |
+| `+reload_tables` / `+reload_magics` / `+reload_quests` / `+reload_notice` / `+reload_ranks` | reload data without restarting |
+| `+open1` … `+open6`, `+close`, `+snowopen`, `+siegewarfare`, `+tp_all`, `+nt`, `+summonknights <clan>`, `+down` | war zones, teleports, nation change, shutdown |
+
+### Do you need a web panel?
+
+Not for testing, and not for registration on a small server: the client-side
+auto-registration above covers it, and accounts created that way already carry
+the correct hash. A panel only earns its keep for things the game client cannot
+do — cash shop top-ups, bans while the server is down, password resets — and it
+would have to reimplement `HashPasswordString` to create accounts. If you ever
+want that, the simplest version is a page that runs the same
+`CALL ACCOUNT_LOGIN(@r, ?, HashPasswordString(?))` against this database.
 
 ## 5. Verify
 
