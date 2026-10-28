@@ -86,10 +86,23 @@ type 'x86'`). Pick one of these:
 
 `libmysql.dll` / `libmariadb.dll` must be next to the executables or on `PATH`.
 
-A command-line build of the whole solution:
+A command-line build of the whole solution — `tools/build.ps1` finds MSBuild
+with `vswhere`, auto-detects the client library and copies the DLL next to the
+executables, so it works from a plain PowerShell window:
 
 ```powershell
-msbuild "ALPHAGAME v1534.sln" /m /p:Configuration=Debug /p:Platform=Win32
+powershell -ExecutionPolicy Bypass -File tools\build.ps1
+```
+
+Useful switches: `-Configuration Release`, `-Platform x64`, `-Clean`, and
+`-MySqlRoot 'C:\path\to\client'` when the install is somewhere unusual.
+When no client library is found it lists the installs it did see instead of
+failing with `LNK1104`.
+
+The manual equivalent, from a *Developer PowerShell for VS 2022* window:
+
+```powershell
+msbuild "ALPHAGAME v1534.sln" /m /p:Configuration=Debug /p:Platform=Win32 /p:MySQLClientLib=libmariadb.lib
 ```
 
 Output lands in `bin\Debug\Win32\` (see `OutDir` in the project files).
