@@ -161,6 +161,34 @@ Three procedures are defined but never called from the C++ (`INSERT_CURRENTUSER`
 `LOAD_SEALED_ITEM_DATA`, `SKILLSHORTCUT_LOAD`), so nothing has exercised them yet;
 `tools/check_call_sites.py` reports them on every run.
 
+## A failing CALL used to look like "no such account"
+
+`ACCOUNT_LOGIN` is called as `{? = CALL ACCOUNT_LOGIN(?, ?)}`, which
+`MySqlCommand` turns into
+
+```sql
+SET @ko_out0 = NULL; CALL ACCOUNT_LOGIN(@ko_out0, 'name', 'hash'); SELECT @ko_out0
+```
+
+`CollectResults()` advanced through that batch with `mysql_next_result()` and
+stopped as soon as it returned anything other than 0 - but that return value is
+also how an error inside the batch is reported. The error was dropped, the
+`SELECT` never ran, and the output parameter kept the value it was initialised
+with (`2`). `LogInServer` maps 2 to `AUTH_NOT_FOUND`, so any failure inside the
+procedure reached the client as "the account does not exist", with nothing
+printed anywhere.
+
+Two fixes:
+
+* `CollectResults()` now checks `mysql_next_result()` and reports the MySQL
+  error (`MySqlCommand.cpp`).
+* `ReportSQLError()` in both servers printed through `TRACE`, which is compiled
+  out in a Release build and goes to the debugger output in Debug - so even a
+  reported error was invisible. It now prints to the console as well.
+
+`tools/dev_run.ps1` runs the statement above against the database before it
+starts anything, so the database half of registration is verified on every run.
+
 ## Windows PowerShell and native stderr
 
 Every script in `tools\` sets `$ErrorActionPreference = "Stop"`. In Windows

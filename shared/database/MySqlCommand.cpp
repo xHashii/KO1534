@@ -371,6 +371,8 @@ bool MySqlCommand::CollectResults(const std::vector<MySqlParameter *> & outputPa
 {
 	MYSQL * handle = m_connection->m_handle;
 
+	int nextResult = 0;
+
 	do
 	{
 		MYSQL_RES * result = mysql_store_result(handle);
@@ -379,16 +381,28 @@ bool MySqlCommand::CollectResults(const std::vector<MySqlParameter *> & outputPa
 			ResultSet set;
 			set.handle = result;
 			m_resultSets.push_back(set);
-			continue;
 		}
-
-		if (mysql_field_count(handle) != 0)
+		else if (mysql_field_count(handle) != 0)
 		{
 			m_szError = m_connection->ReportLastMySqlError(_T("mysql_store_result"),
 														   _T("Failed to buffer the result set."));
 			return false;
 		}
-	} while (mysql_next_result(handle) == 0);
+
+		nextResult = mysql_next_result(handle);
+	} while (nextResult == 0);
+
+	// mysql_next_result() returns >0 when one of the statements failed.  That
+	// case used to fall out of the loop silently: an output parameter then kept
+	// the value it started with, and the caller reported a "not found" instead
+	// of the SQL error that actually happened (this is how a failing
+	// ACCOUNT_LOGIN CALL looked like a missing account at the login screen).
+	if (nextResult > 0)
+	{
+		m_szError = m_connection->ReportLastMySqlError(_T("mysql_next_result"),
+													   _T("A statement in the batch failed."));
+		return false;
+	}
 
 	// The trailing "SELECT @ko_out..." is the output parameter block, not data
 	// for the caller: consume it and write the values back into the bound

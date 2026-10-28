@@ -83,6 +83,11 @@ void CDBAgent::ReportSQLError(MySqlError *pError)
 		fclose(fp);
 	}
 
+	// The console is where an operator actually sees this.  TRACE is compiled
+	// out in a Release build, which is why SQL errors used to be invisible
+	// unless the log file was opened.
+	printf("%s", errorMessage.c_str());
+	fflush(stdout);
 	TRACE("Database error: %s\n", errorMessage.c_str());
 	// owned by the connection; cleared by the next ResetErrors().
 }

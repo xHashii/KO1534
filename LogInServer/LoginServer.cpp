@@ -264,6 +264,11 @@ void LoginServer::ReportSQLError(MySqlError *pError)
 	string errorMessage = string_format(_T("MySQL error occurred.\r\nSource: %s\r\nError: %s\r\nDescription: %s\n"),
 		pError->Source.c_str(), pError->ExtendedErrorMessage.c_str(), pError->ErrorMessage.c_str());
 
+	// Always visible on the console: TRACE is compiled out in Release, and a
+	// failing login is exactly the case where the message is needed.
+	printf("%s", errorMessage.c_str());
+	fflush(stdout);
+
 	TRACE("%s", errorMessage.c_str());
 	WriteLogFile(errorMessage);
 	// The MySqlError is owned by the connection (GetError() returns a view into

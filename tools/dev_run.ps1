@@ -270,6 +270,51 @@ finally {
 Write-Host "Database ready: mysql://${dbUser}:***@127.0.0.1:3306/$dbName  (tables/routines: $counts)"
 
 # ---------------------------------------------------------------------------
+# 2b. Auto-registration self-test.
+#
+# Account creation is not a server setting: ACCOUNT_LOGIN inserts the row when
+# the account does not exist, and LogInServer calls it on every login.  This
+# runs byte for byte the statement LogInServer sends, output parameter included
+# ("{? = CALL ...}" becomes SET / CALL / SELECT @ko_out0), so it tells the two
+# possible causes apart before you open the client:
+#
+#   returns 1 here   -> the database is fine; a "no such ID" at the client then
+#                       comes from the server or client side (the LogInServer
+#                       window prints why)
+#   errors/empty     -> the procedure is missing or failing in this database;
+#                       re-import 004_procedures.sql (see the message below)
+# ---------------------------------------------------------------------------
+$selfTestSql = "DELETE FROM TB_USER WHERE strAccountID = '_kologin_test'; " +
+               "SET @ko_out0 = NULL; " +
+               "CALL ACCOUNT_LOGIN(@ko_out0, '_kologin_test', 'X'); " +
+               "SELECT @ko_out0; " +
+               "DELETE FROM TB_USER WHERE strAccountID = '_kologin_test';"
+
+$selfTest = Invoke-Native -FilePath docker -ArgumentList @(
+    "compose", "exec", "-T", "mysql", "mysql", "-u$dbUser", "-p$dbPass", "-N", "-B", "-e", $selfTestSql)
+
+$selfTestResult = $selfTest.StdOut.Trim()
+if ($selfTest.ExitCode -eq 0 -and $selfTestResult -eq "1") {
+    Write-Host "Auto-registration self-test: ok (ACCOUNT_LOGIN returned 1)"
+}
+else {
+    Write-Host ""
+    Write-Host "Auto-registration self-test FAILED" -ForegroundColor Red
+    Write-Host ("  ACCOUNT_LOGIN returned: '{0}' (exit {1})" -f $selfTestResult, $selfTest.ExitCode)
+
+    $selfTestError = Get-MySqlStderrText $selfTest.StdErr
+    if ($selfTestError) { Write-Host $selfTestError }
+
+    Write-Host ""
+    Write-Host "This is the exact statement LogInServer sends when you log in, so a"
+    Write-Host "failure here is why the client says the account does not exist."
+    Write-Host "Refresh the procedures from the repository, then run this script again:"
+    Write-Host ("    cmd /c `"docker compose exec -T mysql mysql -u{0} -p{1} {2} < migrations\mysql\004_procedures.sql`"" -f `
+                $dbUser, $dbPass, $dbName)
+    throw "ACCOUNT_LOGIN does not work in this database - see the output above."
+}
+
+# ---------------------------------------------------------------------------
 # 3. Runtime files next to the executables.
 #    The servers read ./<name>.ini, ./Map and ./Quests from the working
 #    directory, so everything they need is deployed into $binDir and the

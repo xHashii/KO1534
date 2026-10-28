@@ -83,12 +83,31 @@ void LoginSession::HandleLogin(Packet & pkt)
 	account=rtrim(account);
 	password=ltrim(password);
 	password=rtrim(password);
-	if (account.size() == 0 || account.size() > MAX_ID_SIZE 
-		|| password.size() == 0 || password.size() > MAX_PW_SIZE
-		|| !WordGuardSystem(account,(uint8) account.length()))
-		resultCode = AUTH_NOT_FOUND; 
+	// Anything rejected here never reaches the database, so the client only
+	// sees "NOT FOUND" and there is no trace of why.  Name the rule instead.
+	const char * rejectReason = nullptr;
+
+	if (account.size() == 0)
+		rejectReason = "empty account name";
+	else if (account.size() > MAX_ID_SIZE)
+		rejectReason = "account name longer than 20 characters";
+	else if (password.size() == 0)
+		rejectReason = "empty password";
+	else if (password.size() > MAX_PW_SIZE)
+		rejectReason = "password longer than 28 characters (the client sends a hash)";
+	else if (!WordGuardSystem(account, (uint8) account.length()))
+		rejectReason = "account name contains a character the login server does not accept";
+
+	if (rejectReason != nullptr)
+	{
+		printf("[ LOGIN ] rejected before the database: %s (id %d chars, password %d chars)\n",
+			rejectReason, (int) account.size(), (int) password.size());
+		resultCode = AUTH_NOT_FOUND;
+	}
 	else
+	{
 		resultCode = g_pMain->m_DBProcess.AccountLogin(account, password);
+	}
 
 	std::string sAuthMessage;
 
@@ -123,9 +142,9 @@ void LoginSession::HandleLogin(Packet & pkt)
 		break;
 	}
 
-	printf("[ LOGIN - %d:%d:%d ] ID=%s Authentication=%s\n", 
+	printf("[ LOGIN - %d:%d:%d ] ID=%s Authentication=%s (code %u)\n",
 		time.GetHour(), time.GetMinute(), time.GetSecond(),
-		account.c_str(), sAuthMessage.c_str());
+		account.c_str(), sAuthMessage.c_str(), resultCode);
 
 	result << uint8(resultCode);
 	if (resultCode == AUTH_SUCCESS)
@@ -140,7 +159,7 @@ void LoginSession::HandleLogin(Packet & pkt)
 	{
 	}
 
-	g_pMain->WriteUserLogFile(string_format("[ LOGIN - %d:%d:%d ] ID=%s Authentication=%s\n",time.GetHour(),time.GetMinute(),time.GetSecond(),account.c_str(),password.c_str(),sAuthMessage.c_str()));
+	g_pMain->WriteUserLogFile(string_format("[ LOGIN - %d:%d:%d ] ID=%s Authentication=%s\n",time.GetHour(),time.GetMinute(),time.GetSecond(),account.c_str(),sAuthMessage.c_str()));
 
 	Send(&result);	
 }

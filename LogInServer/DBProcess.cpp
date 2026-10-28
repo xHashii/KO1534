@@ -86,8 +86,28 @@ uint16 CDBProcess::AccountLogin(string & strAccountID, string & strPasswd)
 	dbCommand->AddParameter(SQL_PARAM_INPUT, strAccountID.c_str(), strAccountID.length());
 	dbCommand->AddParameter(SQL_PARAM_INPUT, strPasswd.c_str(), strPasswd.length());
 
-	if (!dbCommand->Execute(_T("{? = CALL ACCOUNT_LOGIN(?, ?)}")))
+	const bool executed = dbCommand->Execute(_T("{? = CALL ACCOUNT_LOGIN(?, ?)}"));
+
+	if (!executed)
+	{
 		g_pMain->ReportSQLError(m_dbConnection.GetError());
+		printf("[ ACCOUNT_LOGIN ] '%s' could not be run - the SQL error is above\n",
+			strAccountID.c_str());
+		return result;      // 2 (AUTH_NOT_FOUND), and now the log says why
+	}
+
+	// ACCOUNT_LOGIN sets 1 (ok) or 3 (wrong password) and nothing else, so the
+	// initial value 2 means the procedure ran without producing a value.
+	if (result == 2)
+	{
+		printf("[ ACCOUNT_LOGIN ] '%s' returned no value - the procedure body did not run\n",
+			strAccountID.c_str());
+	}
+	else
+	{
+		printf("[ ACCOUNT_LOGIN ] '%s' -> %u (1 = ok/registered, 3 = wrong password)\n",
+			strAccountID.c_str(), (unsigned) result);
+	}
 
 	return result;
 }
