@@ -189,10 +189,11 @@ python3 tools/sqlserver_to_mysql.py --routines-dir /tmp/ko/routines
 python3 tools/validate_mysql_migration.py     # static checks, no server needed
 python3 tools/check_call_sites.py             # C++ CALL vs procedure signatures
 python3 tools/check_sql_syntax.py             # parses every statement (needs sqlglot)
+python3 tools/check_projects.py               # .vcxproj/.sln consistency (paths, /ZI vs /Gy-)
 tools/syntax_check_db_layer.sh                # type-checks shared/database on Linux
 ```
 
-All four must print `OK` before you import. `check_sql_syntax.py` is the one
+All five must print `OK` before you build or import. `check_sql_syntax.py` is the one
 that catches grammar mistakes inside stored routines without a MySQL server;
 `sqlglot` is an optional install (`pip install sqlglot`) and the script says so
 instead of failing when it is missing. The gzip is byte-for-byte

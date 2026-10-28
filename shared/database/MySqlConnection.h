@@ -16,6 +16,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <mutex>
 
 // Forward declarations instead of <mysql.h>: the header is kept out of every
 // translation unit that only holds a pointer (it pulls in winsock2.h, which
@@ -31,7 +32,6 @@ struct MySqlError
 
 #include "MySqlCommand.h"
 
-class std::recursive_mutex;
 class MySqlConnection
 {
 	friend class MySqlCommand;
