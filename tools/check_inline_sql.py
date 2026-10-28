@@ -150,7 +150,13 @@ def check_columns_lists(tables):
         checked_columns += len(columns_text.split(","))
         lowered = {c.lower(): c for c in known}
         for column in (c.strip() for c in columns_text.split(",")):
-            if not column or column == "*":
+            if not column:
+                # "a, b," builds "SELECT `a`, `b`, FROM T" - same 1064 as a
+                # reserved word, so it is worth catching before the build.
+                problem("%s: GetColumns() has an empty entry (stray comma)" % name)
+                continue
+
+            if column == "*":
                 continue
 
             bare = column.strip("`[]")
