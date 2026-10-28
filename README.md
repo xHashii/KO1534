@@ -425,6 +425,26 @@ in `GameServer/ChatHandler.cpp:12` and `:60`.
 | `+reload_tables` / `+reload_magics` / `+reload_quests` / `+reload_notice` / `+reload_ranks` | reload data without restarting |
 | `+open1` … `+open6`, `+close`, `+snowopen`, `+siegewarfare`, `+tp_all`, `+nt`, `+summonknights <clan>`, `+down` | war zones, teleports, nation change, shutdown |
 
+### Refreshing the procedures by hand
+
+The routines are created by **root** on the container's first import, so
+replacing them with the application user fails:
+
+```
+ERROR 1227 (42000) at line 22: Access denied; you need (at least one of) the
+SYSTEM_USER privilege(s) for this operation
+```
+
+Use root (password from `.env`, `ko1534root` by default) and let `cmd` do the
+redirection, because PowerShell has no `<`:
+
+```powershell
+cmd /c "docker compose exec -T mysql mysql -uroot -pko1534root KO1534 < migrations\mysql\004_procedures.sql"
+```
+
+A reset (`docker compose down -v && docker compose up -d`) re-imports everything
+as root and avoids the question.
+
 ### Do you need a web panel?
 
 Not for testing, and not for registration on a small server: the client-side

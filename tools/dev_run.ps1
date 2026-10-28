@@ -79,6 +79,8 @@ function Get-DotEnv([string] $Key, [string] $Default) {
 $dbName = Get-DotEnv "MYSQL_DATABASE" "KO1534"
 $dbUser = Get-DotEnv "MYSQL_USER" "ko1534"
 $dbPass = Get-DotEnv "MYSQL_PASSWORD" "ko1534"
+# root is only needed to replace the stored routines (they are owned by root).
+$dbRootPass = Get-DotEnv "MYSQL_ROOT_PASSWORD" "ko1534root"
 
 function Wait-For([scriptblock] $Probe, [string] $What, [int] $TimeoutSeconds = 600) {
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
@@ -308,9 +310,12 @@ else {
     Write-Host ""
     Write-Host "This is the exact statement LogInServer sends when you log in, so a"
     Write-Host "failure here is why the client says the account does not exist."
-    Write-Host "Refresh the procedures from the repository, then run this script again:"
-    Write-Host ("    cmd /c `"docker compose exec -T mysql mysql -u{0} -p{1} {2} < migrations\mysql\004_procedures.sql`"" -f `
-                $dbUser, $dbPass, $dbName)
+    Write-Host "Refresh the procedures from the repository, then run this script again."
+    Write-Host "Use root, not the application user: the routines were created by root when"
+    Write-Host "the container first imported the database, and only root may replace them"
+    Write-Host "(otherwise: ERROR 1227 ... SYSTEM_USER privilege):"
+    Write-Host ("    cmd /c `"docker compose exec -T mysql mysql -uroot -p{0} {1} < migrations\mysql\004_procedures.sql`"" -f `
+                $dbRootPass, $dbName)
     throw "ACCOUNT_LOGIN does not work in this database - see the output above."
 }
 

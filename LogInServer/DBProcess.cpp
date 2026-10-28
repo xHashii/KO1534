@@ -105,8 +105,11 @@ uint16 CDBProcess::AccountLogin(string & strAccountID, string & strPasswd)
 	}
 	else
 	{
-		printf("[ ACCOUNT_LOGIN ] '%s' -> %u (1 = ok/registered, 3 = wrong password)\n",
-			strAccountID.c_str(), (unsigned) result);
+		// The password length is logged because the client sends a hash, not the
+		// text (14 characters for "admin", 7 per 4 characters typed).  A length
+		// that does not match that pattern means the client sent something else.
+		printf("[ ACCOUNT_LOGIN ] '%s' -> %u (1 = ok/registered, 3 = wrong password), password %d chars\n",
+			strAccountID.c_str(), (unsigned) result, (int) strPasswd.length());
 	}
 
 	return result;
