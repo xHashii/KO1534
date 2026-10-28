@@ -26,6 +26,11 @@
     <!-- Override for a non-default MySQL installation, e.g. set the MYSQL_ROOT
          environment variable to "C:\Program Files\MySQL\MySQL Server 8.4". -->
     <MYSQL_ROOT Condition="'$(MYSQL_ROOT)'==''">C:\Program Files\MySQL\MySQL Server 8.4</MYSQL_ROOT>
+    <!-- Import library to link. Oracle's MySQL 8.x packages are x64-only, so a
+         Win32 build needs a 32-bit client library (MariaDB Connector/C 3.x ships
+         one and speaks the MySQL protocol). Override from the command line:
+             msbuild ... /p:MySQLClientLib=libmariadb.lib -->
+    <MySQLClientLib Condition="'$(MySQLClientLib)'==''">libmysql.lib</MySQLClientLib>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

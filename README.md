@@ -13,6 +13,25 @@ limited to:
 
 The C# rewrite that used to live in `src/` has been removed.
 
+## Quick start
+
+```powershell
+git clone https://github.com/xHashii/KO1534.git
+cd KO1534
+git checkout arena/86bd8e59-ko1534        # or: git pull origin arena/86bd8e59-ko1534
+
+docker compose up -d                      # MySQL 8.4 + automatic import of 001..007
+docker compose ps                         # wait for STATUS = healthy
+
+msbuild "ALPHAGAME v1534.sln" /m /p:Configuration=Debug /p:Platform=Win32
+
+powershell -ExecutionPolicy Bypass -File tools\dev_run.ps1
+```
+
+Then start the client from `Client\KnightOnLine.exe` (`Client\Server.ini` already
+points at `127.0.0.1`). Details and the bitness caveat for the build are in
+steps 1–3 below.
+
 ## Repository layout
 
 ```
@@ -34,25 +53,46 @@ docs/                      migration notes and findings
 * Visual Studio 2022 (v143 toolset), **Win32/x86** for the 1534 client
 * MySQL 8.4 LTS — either Docker Desktop, or a local install you point
   `tools/setup_database.ps1` at
-* MySQL Connector/C 8.x (the client library, `libmysql.dll` + `libmysql.lib`)
-  — this is for the *server* build, not for the database setup
+* a MySQL-protocol client library for the **server build** (see step 1) —
+  `libmysql.lib` from a 64-bit MySQL install, or MariaDB Connector/C for a
+  32-bit build. The database itself does not need it.
 
 ## 1. Build
 
-Open `ALPHAGAME v1534.sln`, set the environment variable that the projects use
-for the client library, then build the solution:
+The server is built for **Win32 (x86)**, the same target the project has always
+used. Two settings drive the compile and the link, both overridable from the
+command line:
+
+| MSBuild property | meaning | default |
+|---|---|---|
+| `MYSQL_ROOT` | install prefix containing `include\mysql.h` and `lib\` | `C:\Program Files\MySQL\MySQL Server 8.4` |
+| `MySQLClientLib` | import library to link | `libmysql.lib` |
+
+**Mind the bitness.** Oracle's MySQL 8.x Windows packages are x64-only, so
+`libmysql.lib` from a MySQL 8 server install cannot be linked into a Win32
+executable (`LNK1112: module machine type 'x64' conflicts with target machine
+type 'x86'`). Pick one of these:
+
+* **32-bit client library** (keeps Win32): install *MariaDB Connector/C 3.x*
+  (win32 package — same `mysql.h` API, MySQL protocol, supports
+  `caching_sha2_password`), then
+  `/p:MYSQL_ROOT="C:\Program Files\MariaDB\MariaDB Connector C 3.4" /p:MySQLClientLib=libmariadb.lib`.
+* **x64 build**: `/p:Platform=x64` against an ordinary MySQL 8.4 install. The
+  server and the client are separate processes, so the wire protocol is
+  unaffected — but the x64 build has not been verified in this port, and any
+  32-bit assumption in the original sources would show up here.
+* **Old 32-bit MySQL client** (Connector/C 6.1): works only if the account uses
+  `mysql_native_password`, which MySQL 8.4 disables by default. Not recommended.
+
+`libmysql.dll` / `libmariadb.dll` must be next to the executables or on `PATH`.
+
+A command-line build of the whole solution:
 
 ```powershell
-setx MYSQL_ROOT "C:\Program Files\MySQL\MySQL Connector C 8.4"
+msbuild "ALPHAGAME v1534.sln" /m /p:Configuration=Debug /p:Platform=Win32
 ```
 
-Roughly a dozen translation units include `mysql.h`, so the projects add
-`$(MYSQL_ROOT)\include` to the include path and link `libmysql.lib`. Copy
-`libmysql.dll` next to the executables (or add its folder to `PATH`).
-
-Platform: **Win32**. The client is 32-bit and speaks the original packet format;
-an x64 server build would need a rebuild of the whole socket/crypto layer and is
-not part of this port.
+Output lands in `bin\Debug\Win32\` (see `OutDir` in the project files).
 
 ## 2. Database (automatic)
 

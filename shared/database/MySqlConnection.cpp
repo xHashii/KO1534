@@ -3,7 +3,10 @@
 #include <mysql.h>
 #include "MySqlConnection.h"
 
-#pragma comment(lib, "libmysql.lib")
+// The import library is named by the projects ($(MySQLClientLib), default
+// libmysql.lib) instead of being hard-coded here: Oracle's MySQL 8.x Windows
+// packages are x64-only, so a Win32 build links a 32-bit client library such as
+// MariaDB Connector/C's libmariadb.lib - same API, MySQL protocol.
 
 MySqlConnection::MySqlConnection()
 	: m_handle(nullptr), m_bConnected(false), m_lock(new std::recursive_mutex())
