@@ -41,6 +41,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "lib\NativeCommand.ps1")
+
 $repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $dataDir = Join-Path $repo "data"
 # Search the selected platform first, then the other one: the output folder
@@ -89,12 +91,15 @@ Push-Location $repo
 try {
     if ($ResetDatabase) {
         Write-Host "Resetting the database volume..."
-        docker compose down -v
+        $result = Invoke-Native -FilePath docker -ArgumentList @("compose", "down", "-v")
+        if ($result.Text) { Write-Host $result.Text }
+        if ($result.ExitCode -ne 0) { throw ("docker compose down failed:`n" + $result.Text) }
     }
 
     Write-Host "Starting MySQL..."
-    docker compose up -d
-    if ($LASTEXITCODE -ne 0) { throw "docker compose up failed." }
+    $result = Invoke-Native -FilePath docker -ArgumentList @("compose", "up", "-d")
+    if ($result.Text) { Write-Host $result.Text }
+    if ($result.ExitCode -ne 0) { throw ("docker compose up failed:`n" + $result.Text) }
 
     # -----------------------------------------------------------------------
     # 2. Wait for the schema.  On the very first start the container itself
@@ -108,15 +113,23 @@ try {
     $probe = "SELECT CONCAT((SELECT COUNT(*) FROM information_schema.TABLES " +
              "WHERE TABLE_SCHEMA='$dbName' AND TABLE_TYPE='BASE TABLE'), '/', " +
              "(SELECT COUNT(*) FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA='$dbName'));"
-    $expected = "105/65"   # base tables / routines of a complete import
+    # base tables / routines of a complete import.  ">=" rather than "==" so a
+    # database that already had extra objects is not rejected forever.
+    $expectedTables = 105
+    $expectedRoutines = 65
+    $expected = "$expectedTables/$expectedRoutines"
 
     Write-Host "Waiting for the schema (first run imports the data: 1-3 minutes)..."
     $deadline = (Get-Date).AddMinutes(10)
     $counts = ""
+    $lastCounts = ""
+    $stableSince = Get-Date
     while ($true) {
         # docker inspect is used instead of `compose ps --format` because the
         # available template fields differ between compose versions.
-        $state = (docker inspect -f "{{.State.Status}}" ko1534-mysql 2>$null) -join ""
+        # Exit code 1 just means "no such container yet"; no exception either way.
+        $state = (Invoke-Native -FilePath docker -ArgumentList @(
+            "inspect", "-f", "{{.State.Status}}", "ko1534-mysql")).StdOut.Trim()
         if ($state -match "exited|dead") {
             Write-Host ""
             Write-Host "The MySQL container stopped: the import failed." -ForegroundColor Red
@@ -128,11 +141,49 @@ try {
             throw "MySQL container exited during the import."
         }
 
-        $counts = ((docker compose exec -T mysql mysql "-u$dbUser" "-p$dbPass" -N -B -e $probe 2>$null) -join "").Trim()
-        if ($counts -eq $expected) { break }
+        # The password warning goes to stderr and is filtered out; a real
+        # client error stays in StdErr and is shown only if we time out.
+        $probeResult = Invoke-Native -FilePath docker -ArgumentList @(
+            "compose", "exec", "-T", "mysql", "mysql", "-u$dbUser", "-p$dbPass",
+            "-N", "-B", "-e", $probe)
+        $counts = $probeResult.StdOut.Trim()
+        $probeError = Get-MySqlStderrText $probeResult.StdErr
+
+        if ($counts -ne $lastCounts) {
+            if ($counts) { Write-Host ("  tables/routines: {0}" -f $counts) }
+            $lastCounts = $counts
+            $stableSince = Get-Date
+        }
+
+        if ($counts -match '^(\d+)/(\d+)$') {
+            $tables = [int] $Matches[1]
+            $routines = [int] $Matches[2]
+
+            if ($tables -ge $expectedTables -and $routines -ge $expectedRoutines) { break }
+
+            # 001 creates the tables, 002 inserts the data (the slow part), then
+            # 003..007 create the routines.  A non-zero routine count that stops
+            # moving means the importer reached the routines and one of them
+            # failed - waiting another eight minutes would not help.
+            if ($routines -ge 1 -and $routines -lt $expectedRoutines -and
+                ((Get-Date) - $stableSince).TotalSeconds -ge 20) {
+                $message = ("The import stopped after {0} of {1} routines " +
+                            "({2} tables). A stored routine in 003..007 failed, and an " +
+                            "import does not resume from where it stopped.") -f `
+                            $routines, $expectedRoutines, $tables
+                if ($probeError) { $message += "`nmysql said:`n$probeError" }
+                $message += "`nReset the volume and import again:`n" +
+                            "    docker compose down -v`n    docker compose up -d`n" +
+                            "Then check: docker compose logs mysql"
+                throw $message
+            }
+        }
 
         if ((Get-Date) -gt $deadline) {
-            throw ("Timed out waiting for the import (tables/routines now: {0}). Check: docker compose logs mysql" -f $counts)
+            $message = "Timed out waiting for the import (expected {0}, now '{1}')." -f $expected, $counts
+            if ($probeError) { $message += "`nmysql said:`n$probeError" }
+            $message += "`nCheck: docker compose logs mysql"
+            throw $message
         }
         Start-Sleep -Seconds 3
     }

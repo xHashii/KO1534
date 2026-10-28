@@ -261,9 +261,10 @@ python3 tools/check_projects.py               # .vcxproj/.sln consistency (paths
 python3 tools/check_inline_sql.py             # SQL built inside the C++, vs the schema
 tools/syntax_check_db_layer.sh                # type-checks shared/database on Linux
 tools/tests/run_tests.sh                      # C++ unit tests (quoting, runtime paths)
+python3 tools/check_powershell.py             # native-stderr trap, dot-sources, brackets
 ```
 
-All seven must print `OK` before you build or import. `check_inline_sql.py` is the
+All eight must print `OK` before you build or import. `check_inline_sql.py` is the
 one that catches the MySQL-8 problems inside hand-written statements: a reserved
 word used as a column name (`Range`), T-SQL spellings (`[Level]`, `TOP(n)`,
 `ISNULL()`, `FULL OUTER JOIN`, `DATEDIFF`, `getdate()`), and column names that

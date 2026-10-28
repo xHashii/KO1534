@@ -56,6 +56,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "lib\NativeCommand.ps1")
+
 $repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $migrationDir = Join-Path $repo "migrations\mysql"
 
@@ -102,15 +104,16 @@ function Invoke-MySql {
         # Redirect the file into mysql.exe: 143 MB of INSERTs must not go
         # through a PowerShell variable.
         $cmdLine = '"' + $MySqlBinExe + '" ' + ($mysqlArgs -join ' ') + ' "' + $Database + '" < "' + $InputFile + '"'
-        $out = cmd.exe /c $cmdLine 2>&1
+        $result = Invoke-Native -FilePath cmd.exe -ArgumentList @("/c", $cmdLine)
     } else {
-        $out = & $MySqlBinExe @mysqlArgs $Database --execute="$Query" 2>&1
+        $result = Invoke-Native -FilePath $MySqlBinExe `
+            -ArgumentList (@($mysqlArgs) + $Database + "--execute=$Query")
     }
 
-    if ($LASTEXITCODE -ne 0) {
-        throw "mysql.exe failed ($LASTEXITCODE):`n$out"
+    if ($result.ExitCode -ne 0) {
+        throw ("mysql.exe failed ({0}):`n{1}" -f $result.ExitCode, (Get-MySqlStderrText $result.Text))
     }
-    return $out
+    return $result.StdOut
 }
 
 $MySqlBinExe = Find-MySql
@@ -162,8 +165,10 @@ try {
     $mysqlArgs = @("--host=$HostName", "--port=$Port", "--user=$User", "--protocol=TCP", "--batch")
     if ($Password) { $mysqlArgs += "--password=$Password" }
     $cmdLine = '"' + $MySqlBinExe + '" ' + ($mysqlArgs -join ' ') + ' < "' + $tmpSql + '"'
-    $out = cmd.exe /c $cmdLine 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "Could not create the database: $out" }
+    $result = Invoke-Native -FilePath cmd.exe -ArgumentList @("/c", $cmdLine)
+    if ($result.ExitCode -ne 0) {
+        throw ("Could not create the database: " + (Get-MySqlStderrText $result.Text))
+    }
 } finally {
     Remove-Item $tmpSql -ErrorAction SilentlyContinue
 }

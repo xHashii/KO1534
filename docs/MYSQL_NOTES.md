@@ -148,6 +148,25 @@ Three procedures are defined but never called from the C++ (`INSERT_CURRENTUSER`
 `LOAD_SEALED_ITEM_DATA`, `SKILLSHORTCUT_LOAD`), so nothing has exercised them yet;
 `tools/check_call_sites.py` reports them on every run.
 
+## Windows PowerShell and native stderr
+
+Every script in `tools\` sets `$ErrorActionPreference = "Stop"`. In Windows
+PowerShell 5.1 that turns anything a native program writes to stderr into a
+terminating error as soon as the output is redirected (`2>$null`, `2>&1`) - so a
+harmless warning aborts the script:
+
+```
+docker : mysql: [Warning] Using a password on the command line interface can be insecure.
+    + CategoryInfo          : NotSpecified: (...) [RemoteException], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+```
+
+`tools\lib\NativeCommand.ps1` provides `Invoke-Native`, which captures stdout
+and stderr separately and keeps the real exit code, so a warning is data rather
+than a failure. `tools/check_powershell.py` fails the check list if a script
+redirects a native program's stderr directly again, or calls `Invoke-Native`
+without loading the library.
+
 ## Verification status
 
 | item | status |

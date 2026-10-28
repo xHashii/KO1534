@@ -45,6 +45,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "lib\NativeCommand.ps1")
 $repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $solution = Join-Path $repo "ALPHAGAME v1534.sln"
 
@@ -60,8 +61,11 @@ function Find-MSBuild {
     $vswhere = $null
     if ($pf86) { $vswhere = Join-Path $pf86 "Microsoft Visual Studio\Installer\vswhere.exe" }
     if ($vswhere -and (Test-Path $vswhere)) {
-        $found = & $vswhere -latest -products * -requires Microsoft.Component.MSBuild `
-                            -find "MSBuild\**\Bin\MSBuild.exe" 2>$null
+        # vswhere exits 1 and says nothing when no Visual Studio is installed;
+        # Invoke-Native keeps that from aborting the script under "Stop".
+        $found = (Invoke-Native -FilePath $vswhere -ArgumentList @(
+            "-latest", "-products", "*", "-requires", "Microsoft.Component.MSBuild",
+            "-find", "MSBuild\**\Bin\MSBuild.exe")).StdOut.Trim()
         if ($found) { return ($found | Select-Object -First 1) }
     }
 
@@ -162,6 +166,8 @@ Write-Host ""
 $target = "Build"
 if ($Clean) { $target = "Rebuild" }
 
+# Deliberately not redirected: the output streams live, and a native program's
+# stderr only becomes a terminating error in PowerShell 5.1 when it is piped.
 & $msbuild $solution "/m" "/t:$target" "/p:Configuration=$Configuration" `
     "/p:Platform=$Platform" "/p:MYSQL_ROOT=$root" "/p:MySQLClientLib=$Lib" `
     "/nologo" "/v:minimal" "/clp:Summary"
