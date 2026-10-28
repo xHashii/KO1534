@@ -1,10 +1,10 @@
 #pragma once
 
-class CMagicType9Set : public OdbcRecordset
+class CMagicType9Set : public MySqlRecordset
 {
 public:
-	CMagicType9Set(OdbcConnection * dbConnection, Magictype9Array * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMagicType9Set(MySqlConnection * dbConnection, Magictype9Array * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAGIC_TYPE9"); }
 	virtual tstring GetColumns() { return _T("iNum, ValidGroup, NationChange, MonsterNum, TargetChange, StateChange, Radius, Hitrate, Duration, AddDamage, Vision, NeedItem"); }

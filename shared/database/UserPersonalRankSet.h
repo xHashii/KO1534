@@ -1,10 +1,10 @@
 #pragma once
 
-class CUserPersonalRankSet : public OdbcRecordset
+class CUserPersonalRankSet : public MySqlRecordset
 {
 public:
-	CUserPersonalRankSet(OdbcConnection * dbConnection, UserNameRankMap * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CUserPersonalRankSet(MySqlConnection * dbConnection, UserNameRankMap * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("USER_PERSONAL_RANK"); }
 	virtual tstring GetColumns() { return _T("nRank, nSalary, strElmoUserID, strKarusUserID, nElmoLoyaltyMonthly, nKarusLoyaltyMonthly"); }

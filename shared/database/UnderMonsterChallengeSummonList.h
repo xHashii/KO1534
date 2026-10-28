@@ -1,10 +1,10 @@
 #pragma once
  
-class CUnderMonsterChallengeSummonList : public OdbcRecordset
+class CUnderMonsterChallengeSummonList : public MySqlRecordset
 {
 public:
-	CUnderMonsterChallengeSummonList(OdbcConnection * dbConnection, UnderMonsterChallengeSummonListArray * pMap) 
-    : OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CUnderMonsterChallengeSummonList(MySqlConnection * dbConnection, UnderMonsterChallengeSummonListArray * pMap) 
+    : MySqlRecordset(dbConnection), m_pMap(pMap) {}
 	
 	virtual tstring GetTableName() { return _T("UNDER_MONSTER_CHALLENGE_SUMMON_LIST"); }
 	virtual tstring GetColumns() { return _T("sIndex, bLevel, bStage, bStageLevel, sTime, sSid, sCount, sPosX, sPosZ, bRange"); }

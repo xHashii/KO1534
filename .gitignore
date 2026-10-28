@@ -1,8 +1,8 @@
 # ------------------------------------------------------------------
-# Knight Online 1534 - C# Rewrite (Ko1534)
+# Knight Online 1534 - C++ server (Visual Studio 2022) + MySQL 8.4 port
 # ------------------------------------------------------------------
 
-# Visual Studio / .NET
+# Visual Studio build artifacts
 .vs/
 *.user
 *.suo
@@ -94,17 +94,14 @@ config/*.secret.ini
 .env
 
 # Database exports / dumps (large, never commit).
-# Note: *.sql is intentionally NOT ignored — migrations/*.sql are source.
-# The auto-generated 0002_data.sql (137 MB) is ignored because Docker loads
-# it from the working tree; it can be regenerated from KO1534_sql.zip.
+# Note: *.sql is intentionally NOT ignored — migrations/mysql/*.sql are source.
+# The generated data file is ignored because it is large and reproducible.
 *.sql.gz
-!migrations/0002_data.sql.gz
 *.bak
 *.dump
 *.dump.gz
 mysql-data/
 migrations/_import/
-migrations/0002_data.sql
 KO1534.sql
 KO1534_utf8.sql
 
@@ -117,3 +114,11 @@ Quests/Cache/
 # (Currently commented out — uncomment to exclude from Git.)
 # data/map/*.smd
 # data/Quests/*.lua
+
+# ------------------------------------------------------------------
+# Knight Online 1534 - C++ server, MySQL port
+# ------------------------------------------------------------------
+
+# Generated from KO1534_sql.zip by tools/sqlserver_to_mysql.py (143 MB).
+# Regenerate with:  python3 tools/sqlserver_to_mysql.py
+migrations/mysql/002_data.sql

@@ -1,10 +1,10 @@
 #pragma once
 
-class CEventSet : public OdbcRecordset
+class CEventSet : public MySqlRecordset
 {
 public:
-	CEventSet(OdbcConnection * dbConnection, ZoneArray *pZoneArray) 
-		: OdbcRecordset(dbConnection), m_pZoneArray(pZoneArray) {}
+	CEventSet(MySqlConnection * dbConnection, ZoneArray *pZoneArray) 
+		: MySqlRecordset(dbConnection), m_pZoneArray(pZoneArray) {}
 
 	virtual tstring GetTableName() { return _T("EVENT"); }
 	virtual tstring GetColumns() { return _T("ZoneNum, EventNum, Type, Cond1, Cond2, Cond3, Cond4, Cond5, Exec1, Exec2, Exec3, Exec4, Exec5"); }

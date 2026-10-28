@@ -1,10 +1,10 @@
 #pragma once
 
-class CNpcItemSet : public OdbcRecordset
+class CNpcItemSet : public MySqlRecordset
 {
 public:
-	CNpcItemSet(OdbcConnection * dbConnection, NpcItemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CNpcItemSet(MySqlConnection * dbConnection, NpcItemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("K_MONSTER_ITEM"); }
 	virtual tstring GetColumns() { return _T("sIndex, iItem01, sPersent01, iItem02, sPersent02, iItem03, sPersent03, iItem04, sPersent04, iItem05, sPersent05"); }

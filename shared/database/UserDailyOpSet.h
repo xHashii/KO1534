@@ -1,10 +1,10 @@
 #pragma once
 
-class CUserDailyOpSet : public OdbcRecordset
+class CUserDailyOpSet : public MySqlRecordset
 {
 public:
-	CUserDailyOpSet(OdbcConnection * dbConnection, UserDailyOpMap * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CUserDailyOpSet(MySqlConnection * dbConnection, UserDailyOpMap * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("USER_DAILY_OP"); }
 	virtual tstring GetColumns() { return _T("strUserId, ChaosMapTime, UserRankRewardTime, PersonalRankRewardTime, KingWingTime, WarderKillerTime1, WarderKillerTime2, KeeperKillerTime, UserLoyaltyWingRewardTime"); }

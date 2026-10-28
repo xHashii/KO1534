@@ -1,10 +1,10 @@
 #pragma once
 
-class CQuestHelperSet : public OdbcRecordset
+class CQuestHelperSet : public MySqlRecordset
 {
 public:
-	CQuestHelperSet(OdbcConnection * dbConnection, QuestHelperArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CQuestHelperSet(MySqlConnection * dbConnection, QuestHelperArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("QUEST_HELPER"); }
 	virtual tstring GetColumns() { return _T("nIndex, bMessageType, bLevel, nExp, bClass, bNation, bQuestType, bZone, sNpcId, sEventDataIndex, bEventStatus, nEventTriggerIndex, nEventCompleteIndex, nExchangeIndex, nEventTalkIndex, strLuaFilename"); }

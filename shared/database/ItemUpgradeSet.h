@@ -1,10 +1,10 @@
 #pragma once
 
-class CItemUpgradeSet : public OdbcRecordset
+class CItemUpgradeSet : public MySqlRecordset
 {
 public:
-	CItemUpgradeSet(OdbcConnection * dbConnection, ItemUpgradeArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CItemUpgradeSet(MySqlConnection * dbConnection, ItemUpgradeArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("ITEM_UPGRADE"); }
 	virtual tstring GetColumns() { return _T("nIndex, nNPCNum, nOriginType, nOriginItem, "

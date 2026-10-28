@@ -1,10 +1,10 @@
 #pragma once
 
-class CMagicType1Set : public OdbcRecordset
+class CMagicType1Set : public MySqlRecordset
 {
 public:
-	CMagicType1Set(OdbcConnection * dbConnection, Magictype1Array * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMagicType1Set(MySqlConnection * dbConnection, Magictype1Array * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAGIC_TYPE1"); }
 	virtual tstring GetColumns() { return _T("iNum, Type, HitRate, Hit, AddDamage, Delay, ComboType, ComboCount, ComboDamage, Range"); }

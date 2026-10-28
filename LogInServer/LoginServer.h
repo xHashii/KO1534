@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../shared/KOSocketMgr.h"
+#include "../shared/database/DbConfigReader.h"
 
 typedef std::map <std::string, _VERSION_INFO *> VersionInfoList;
 typedef std::vector<_SERVER_INFO *>	ServerInfoList;
@@ -37,10 +38,10 @@ private:
 	void UpdateServerList();
 	void GetInfoFromIni();
 	void WriteLogFile(std::string & logMessage);
-	void ReportSQLError(OdbcError *pError);
+	void ReportSQLError(MySqlError *pError);
 
 	std::string m_strFtpUrl, m_strFilePath;
-	std::string m_ODBCName, m_ODBCLogin, m_ODBCPwd;
+	MySqlConfig m_dbConfig;
 	short	m_sLastVersion;
 
 	uint32 m_LoginServerPort;

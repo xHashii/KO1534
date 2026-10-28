@@ -1,10 +1,10 @@
 #pragma once
 
-class CMagicType7Set : public OdbcRecordset
+class CMagicType7Set : public MySqlRecordset
 {
 public:
-	CMagicType7Set(OdbcConnection * dbConnection, Magictype7Array * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMagicType7Set(MySqlConnection * dbConnection, Magictype7Array * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAGIC_TYPE7"); }
 	virtual tstring GetColumns() { return _T("nIndex, byValidGroup, byNatoinChange, shMonsterNum, byTargetChange, byStateChange, byRadius, shHitrate, shDuration, shDamage, byVisoin, nNeedItem"); }

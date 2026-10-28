@@ -1,10 +1,10 @@
 #pragma once
 
-class CIUserSealItem : public OdbcRecordset
+class CIUserSealItem : public MySqlRecordset
 {
 public:
-	CIUserSealItem(OdbcConnection * dbConnection, UserSealItemArray * pMap)
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CIUserSealItem(MySqlConnection * dbConnection, UserSealItemArray * pMap)
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("USER_SEAL"); }
 	virtual tstring GetColumns() { return _T("strUserID, strSerial, SealSerial, bRaceSatis, sClass, bLevel, lExp, Stat_STR, Stat_STA, Stat_DEX, Stat_INT, Stat_CHA, bGold, bSkillPoints, strItem"); }

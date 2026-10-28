@@ -2,7 +2,7 @@
 
 #include "Define.h"
 #include "../shared/KOSocketMgr.h"
-#include "../shared/database/OdbcConnection.h"
+#include "../shared/database/MySqlConnection.h"
 
 #include "GameSocket.h"
 
@@ -61,7 +61,7 @@ public:
 	CServerDlg();
 	bool Startup();
 
-	bool LoadSpawnCallback(OdbcCommand *dbCommand);
+	bool LoadSpawnCallback(MySqlCommand *dbCommand);
 	void GameServerAcceptThread();
 	void GetServerResource(int nResourceID, std::string * result, ...);
 	bool AddObjectEventNpc(_OBJECT_EVENT* pEvent, MAP * pMap);
@@ -117,8 +117,8 @@ public:
 
 	Thread m_zoneEventThread;
 
-	std::string m_strGameDSN, m_strGameUID, m_strGamePWD;
-	OdbcConnection m_GameDB;
+	MySqlConfig m_dbConfig;
+	MySqlConnection m_GameDB;
 
 	uint32 m_AIServerPort;
 	uint8	m_byMaxLevel;

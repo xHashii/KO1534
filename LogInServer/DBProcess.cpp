@@ -1,8 +1,8 @@
 #include "stdafx.h"
 
-bool CDBProcess::Connect(string & szDSN, string & szUser, string & szPass)
+bool CDBProcess::Connect(const MySqlConfig & config)
 {
-	if (!m_dbConnection.Connect(szDSN, szUser, szPass))
+	if (!m_dbConnection.Connect(config))
 	{
 		g_pMain->ReportSQLError(m_dbConnection.GetError());
 		return false;
@@ -13,7 +13,7 @@ bool CDBProcess::Connect(string & szDSN, string & szUser, string & szPass)
 
 bool CDBProcess::LoadVersionList()
 {
-	unique_ptr<OdbcCommand> dbCommand(m_dbConnection.CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_dbConnection.CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -47,7 +47,7 @@ bool CDBProcess::LoadVersionList()
 
 bool CDBProcess::LoadUserCountList()
 {
-	unique_ptr<OdbcCommand> dbCommand(m_dbConnection.CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_dbConnection.CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -78,7 +78,7 @@ bool CDBProcess::LoadUserCountList()
 uint16 CDBProcess::AccountLogin(string & strAccountID, string & strPasswd)
 {
 	uint16 result = 2;
-	unique_ptr<OdbcCommand> dbCommand(m_dbConnection.CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_dbConnection.CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return 6;
 
@@ -95,7 +95,7 @@ uint16 CDBProcess::AccountLogin(string & strAccountID, string & strPasswd)
 int16 CDBProcess::AccountPremium(string & strAccountID)
 {
 	int16 sHours = -1;
-	unique_ptr<OdbcCommand> dbCommand(m_dbConnection.CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_dbConnection.CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return sHours;
 	

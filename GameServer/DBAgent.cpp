@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "../shared/database/OdbcConnection.h"
+#include "../shared/database/MySqlConnection.h"
 #include "KnightsManager.h"
 #include "DBAgent.h"
 #include "../shared/DateTime.h"
@@ -11,8 +11,8 @@ using std::unique_ptr;
 
 CDBAgent::CDBAgent()
 {
-	m_GameDB = new OdbcConnection();
-	m_AccountDB = new OdbcConnection();
+	m_GameDB = new MySqlConnection();
+	m_AccountDB = new MySqlConnection();
 }
 
 CDBAgent::~CDBAgent()
@@ -20,15 +20,10 @@ CDBAgent::~CDBAgent()
 	delete m_GameDB;
 	delete m_AccountDB;
 }
-bool CDBAgent::Startup(bool bMarsEnabled, 
-					   tstring & strAccountDSN, tstring & strAccountUID, tstring & strAccountPWD,
-					   tstring & strGameDSN, tstring & strGameUID, tstring & strGamePWD)
+bool CDBAgent::Startup(const MySqlConfig & accountConfig, const MySqlConfig & gameConfig)
 {
-	if (!Connect(bMarsEnabled,
-		strAccountDSN, strAccountUID, strAccountPWD,
-		strGameDSN, strGameUID, strGamePWD))
+	if (!Connect(accountConfig, gameConfig))
 	{
-		// we should probably be a little more specific (i.e. *which* database server)
 		printf(_T("ERROR: Failed to connect to the database server.\n"));
 		return false;
 	}
@@ -38,17 +33,15 @@ bool CDBAgent::Startup(bool bMarsEnabled,
 	return true;
 }
 
-bool CDBAgent::Connect(bool bMarsEnabled, 
-					   tstring & strAccountDSN, tstring & strAccountUID, tstring & strAccountPWD,
-					   tstring & strGameDSN, tstring & strGameUID, tstring & strGamePWD)
+bool CDBAgent::Connect(const MySqlConfig & accountConfig, const MySqlConfig & gameConfig)
 {
-	if (!m_AccountDB->Connect(strAccountDSN, strAccountUID, strAccountPWD, bMarsEnabled))
+	if (!m_AccountDB->Connect(accountConfig))
 	{
 		ReportSQLError(m_AccountDB->GetError());
 		return false;
 	}
 
-	if (!m_GameDB->Connect(strGameDSN, strGameUID, strGamePWD, bMarsEnabled))
+	if (!m_GameDB->Connect(gameConfig))
 	{
 		ReportSQLError(m_GameDB->GetError());
 		return false;
@@ -57,7 +50,7 @@ bool CDBAgent::Connect(bool bMarsEnabled,
 	return true;
 }
 
-void CDBAgent::ReportSQLError(OdbcError *pError)
+void CDBAgent::ReportSQLError(MySqlError *pError)
 {
 	if (pError == nullptr)
 		return;
@@ -65,7 +58,7 @@ void CDBAgent::ReportSQLError(OdbcError *pError)
 	DateTime time;
 
 	// This is *very* temporary.
-	string errorMessage = string_format(_T("[ ODBC Error - %d.%d.%d %d:%d:%d ] ] Source: %s Error: %s Description: %s\n"),
+	string errorMessage = string_format(_T("[ MySQL Error - %d.%d.%d %d:%d:%d ] ] Source: %s Error: %s Description: %s\n"),
 		time.GetDay(),time.GetMonth(),time.GetYear(),time.GetHour(),time.GetMinute(),time.GetSecond(),
 		pError->Source.c_str(), pError->ExtendedErrorMessage.c_str(), pError->ErrorMessage.c_str());
 
@@ -78,13 +71,13 @@ void CDBAgent::ReportSQLError(OdbcError *pError)
 	}
 
 	TRACE("Database error: %s\n", errorMessage.c_str());
-	delete pError;
+	// owned by the connection; cleared by the next ResetErrors().
 }
 
 int8 CDBAgent::AccountLogin(string & strAccountID, string & strPasswd)
 {
 	int8 bRet = -1;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return bRet;
 
@@ -101,7 +94,7 @@ int8 CDBAgent::AccountLogin(string & strAccountID, string & strPasswd)
 uint8 CDBAgent::NationSelect(string & strAccountID, uint8 bNation)
 {
 	uint8 bRet = 0;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -116,7 +109,7 @@ uint8 CDBAgent::NationSelect(string & strAccountID, uint8 bNation)
 
 bool CDBAgent::GetAllCharID(string & strAccountID, string & strCharID1, string & strCharID2, string & strCharID3)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -153,7 +146,7 @@ void CDBAgent::LoadCharInfo(string & strCharID, ByteBuffer & result)
 
 	if (!strCharID.empty())
 	{
-		unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+		unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 		if (dbCommand.get() == nullptr)
 			return;
 
@@ -191,7 +184,7 @@ void CDBAgent::LoadCharInfo(string & strCharID, ByteBuffer & result)
 int8 CDBAgent::CreateNewChar(string & strAccountID, int index, string & strCharID, uint8 bRace, uint16 sClass, uint32 nHair, uint8 bFace, uint8 bStr, uint8 bSta, uint8 bDex, uint8 bInt, uint8 bCha)
 {
 	int8 bRet = -1;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return bRet;
 
@@ -209,7 +202,7 @@ int8 CDBAgent::CreateNewChar(string & strAccountID, int index, string & strCharI
 int8 CDBAgent::ChangeHair(std::string & strAccountID, std::string & strCharID, uint8 bOpcode, uint8 bFace, uint32 nHair)
 {
 	int8 bRet = 1; // failed
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return bRet;
 
@@ -227,7 +220,7 @@ int8 CDBAgent::ChangeHair(std::string & strAccountID, std::string & strCharID, u
 int8 CDBAgent::DeleteChar(string & strAccountID, int index, string & strCharID, string & strSocNo)
 {
 	int8 bRet = -2; // generic error
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return bRet;
 
@@ -244,7 +237,7 @@ int8 CDBAgent::DeleteChar(string & strAccountID, int index, string & strCharID, 
 
 void CDBAgent::LoadRentalData(string & strAccountID, string & strCharID, UserRentalMap & rentalData)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -293,7 +286,7 @@ void CDBAgent::LoadRentalData(string & strAccountID, string & strCharID, UserRen
 
 void CDBAgent::LoadItemSealData(string & strAccountID, string & strCharID, UserItemSealMap & itemSealData)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -325,7 +318,7 @@ void CDBAgent::LoadItemSealData(string & strAccountID, string & strCharID, UserI
 
 bool CDBAgent::LoadUserData(string & strAccountID, string & strCharID, CUser *pUser)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -586,7 +579,7 @@ bool CDBAgent::LoadWarehouseData(string & strAccountID, CUser *pUser)
 {
 	char strItem[WAREHOUSE_MAX * 8], strSerial[WAREHOUSE_MAX * 8], strItemTime[WAREHOUSE_MAX * 4], strUserSeal[WAREHOUSE_MAX * 4];
 
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -674,7 +667,7 @@ bool CDBAgent::LoadPremiumServiceUser(string & strAccountID, CUser *pUser)
 	if (pUser == nullptr)
 		return false;
 
-	unique_ptr<OdbcCommand> dbCommand(m_AccountDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_AccountDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -697,7 +690,7 @@ bool CDBAgent::LoadSavedMagic(CUser *pUser)
 	if (pUser == nullptr)
 		return false;
 
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -735,7 +728,7 @@ bool CDBAgent::UpdateSavedMagic(CUser *pUser)
 	if (pUser == nullptr)
 		return false;
 
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -768,7 +761,7 @@ bool CDBAgent::UpdateSavedMagic(CUser *pUser)
 bool CDBAgent::SetLogInInfo(string & strAccountID, string & strCharID, string & strServerIP, short sServerNo, string & strClientIP, uint8 bInit)
 {
 	uint8 result = 0;
-	unique_ptr<OdbcCommand> dbCommand(m_AccountDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_AccountDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -786,7 +779,7 @@ bool CDBAgent::SetLogInInfo(string & strAccountID, string & strCharID, string & 
 
 bool CDBAgent::LoadWebItemMall(std::vector<_ITEM_DATA> & itemList, CUser *pUser)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -816,7 +809,7 @@ bool CDBAgent::LoadSkillShortcut(Packet & result, CUser *pUser)
 	if (pUser == nullptr)
 		return false;
 
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -848,7 +841,7 @@ bool CDBAgent::LoadSkillShortcut(Packet & result, CUser *pUser)
 
 void CDBAgent::SaveSkillShortcut(uint16 sCount, char *buff, CUser *pUser)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -868,7 +861,7 @@ bool CDBAgent::SavePremiumServiceUser(CUser *pUser)
 		&& pUser->m_sPremiumTime == 0)
 		return false;
 
-	unique_ptr<OdbcCommand> dbCommand(m_AccountDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_AccountDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -884,7 +877,7 @@ bool CDBAgent::SavePremiumServiceUser(CUser *pUser)
 
 uint8 CDBAgent::SealItem(string strSealPasswd, uint64 nItemSerial, uint32 nItemID, uint8 bSealType, CUser *pUser)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return 3;
 
@@ -903,7 +896,7 @@ uint8 CDBAgent::SealItem(string strSealPasswd, uint64 nItemSerial, uint32 nItemI
 
 void CDBAgent::RequestFriendList(std::vector<string> & friendList, CUser *pUser)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -930,7 +923,7 @@ FriendAddResult CDBAgent::AddFriend(short sid, short tid)
 		|| pTargetUser == nullptr)
 		return FRIEND_ADD_ERROR;
 
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return FRIEND_ADD_ERROR;
 
@@ -948,7 +941,7 @@ FriendAddResult CDBAgent::AddFriend(short sid, short tid)
 
 FriendRemoveResult CDBAgent::RemoveFriend(string & strCharID, CUser *pUser)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return FRIEND_REMOVE_ERROR;
 
@@ -969,7 +962,7 @@ bool CDBAgent::UpdateUser(string & strCharID, UserUpdateType type, CUser *pUser)
 	if (strCharID != pUser->GetName())
 		return false;
 
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1060,7 +1053,7 @@ bool CDBAgent::UpdateWarehouseData(string & strAccountID, UserUpdateType type, C
 	if (strAccountID.length() == 0)
 		return false;
 
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1097,7 +1090,7 @@ bool CDBAgent::UpdateWarehouseData(string & strAccountID, UserUpdateType type, C
 int8 CDBAgent::UpdateAlliance(uint8 byType, uint16 shAlliancIndex, uint16 shKnightsIndex, uint8  byEmptyIndex, uint8 bySiegeFlag)
 {
 	int8 bRet = -1;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return bRet;
 	
@@ -1111,7 +1104,7 @@ int8 CDBAgent::UpdateAlliance(uint8 byType, uint16 shAlliancIndex, uint16 shKnig
 int8 CDBAgent::CreateKnights(uint16 sClanID, uint8 bNation, string & strKnightsName, string & strChief, uint8 bFlag)
 {
 	int8 bRet = -1;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return bRet;
 
@@ -1128,7 +1121,7 @@ int8 CDBAgent::CreateKnights(uint16 sClanID, uint8 bNation, string & strKnightsN
 int CDBAgent::UpdateKnights(uint8 bType, string & strCharID, uint16 sClanID, uint8 bDomination)
 {
 	int16 sRet = -1;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return sRet;
 
@@ -1158,7 +1151,7 @@ int CDBAgent::UpdateKnights(uint8 bType, string & strCharID, uint16 sClanID, uin
 int CDBAgent::DeleteKnights(uint16 sClanID)
 {
 	int16 sRet = -1;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return sRet;
 
@@ -1171,7 +1164,7 @@ int CDBAgent::DeleteKnights(uint16 sClanID)
 
 bool CDBAgent::LoadKnightsAllMembers(uint16 sClanID, _KNIGHTS_USER* p)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1197,7 +1190,7 @@ bool CDBAgent::LoadKnightsAllMembers(uint16 sClanID, _KNIGHTS_USER* p)
 
 bool CDBAgent::LoadCapeId(uint16 sClanID, uint16 & m_sCape)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1213,7 +1206,7 @@ bool CDBAgent::LoadCapeId(uint16 sClanID, uint16 & m_sCape)
 
 bool CDBAgent::LoadAllianceInfo(uint16 sClanID, uint16 & sSubAllianceKnights, uint16 & sMercenaryClan_1, uint16 & sMercenaryClan_2)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1232,7 +1225,7 @@ bool CDBAgent::LoadAllianceInfo(uint16 sClanID, uint16 & sSubAllianceKnights, ui
 
 bool CDBAgent::LoadKnightsInfo(uint16 sClanID, uint8 & bNation, std::string & strKnightsName, uint16 & sMembers, uint32 & nPoints, uint8 & bRank)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1253,7 +1246,7 @@ bool CDBAgent::LoadKnightsInfo(uint16 sClanID, uint8 & bNation, std::string & st
 
 void CDBAgent::LoadKnightsAllList()
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	const tstring szSQL = _T("SELECT IDNum, Points, Ranking FROM KNIGHTS WHERE Points != 0 ORDER BY Points DESC"); 
 
 	if (dbCommand.get() == nullptr)
@@ -1306,7 +1299,7 @@ void CDBAgent::LoadKnightsAllList()
 
 bool CDBAgent::UpdateClanSymbol(uint16 sClanID, uint16 sSymbolSize, char *clanSymbol)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1373,7 +1366,7 @@ void CKnightsManager::ReqDonateNP(CUser *pUser, Packet & pkt)
 */
 bool CDBAgent::DonateClanPoints(CUser * pUser,  uint32 amountNP)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1441,7 +1434,7 @@ void CKnightsManager::ReqUpdateNP(Packet & pkt)
 */
 void CDBAgent::RefundNP(string & strUserID, uint32 nRefundNP)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1458,7 +1451,7 @@ void CDBAgent::RefundNP(string & strUserID, uint32 nRefundNP)
 */
 void CDBAgent::UpdateUserAuthority(string & strUserID, uint16 nAuthority)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1475,7 +1468,7 @@ void CDBAgent::UpdateUserAuthority(string & strUserID, uint16 nAuthority)
 */
 void CDBAgent::UpdateClanFund(uint16 sClanID, uint32 nClanPointFund)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1491,7 +1484,7 @@ void CDBAgent::UpdateClanFund(uint16 sClanID, uint32 nClanPointFund)
 */
 void CDBAgent::UpdateClanNotice(uint16 sClanID, std::string & strClanNotice)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1508,7 +1501,7 @@ void CDBAgent::UpdateClanNotice(uint16 sClanID, std::string & strClanNotice)
 */
 void CDBAgent::UpdateAllianceNotice(uint16 sClanID, std::string & strAllianceNotice)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1519,7 +1512,7 @@ void CDBAgent::UpdateAllianceNotice(uint16 sClanID, std::string & strAllianceNot
 
 NameChangeOpcode CDBAgent::UpdateCharacterName(std::string & strAccountID, std::string & strUserID, std::string & strNewUserID)
 {
-	 unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	 unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	 if (dbCommand.get() == nullptr)
 	  return NameChangeInvalidName;
 
@@ -1538,7 +1531,7 @@ NameChangeOpcode CDBAgent::UpdateCharacterName(std::string & strAccountID, std::
 
 ClanNameChangeOpcode CDBAgent::UpdateCharacterClanName(std::string & strClanID, std::string & strNewClanID)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return ClanNameChangeInvalidName;
 
@@ -1567,7 +1560,7 @@ ClanNameChangeOpcode CDBAgent::UpdateCharacterClanName(std::string & strClanID, 
 */
 void CDBAgent::UpdateCape(uint16 sClanID, uint16 sCapeID, uint8 r, uint8 g, uint8 b)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1585,7 +1578,7 @@ void CDBAgent::UpdateCape(uint16 sClanID, uint16 sCapeID, uint8 r, uint8 g, uint
 */
 void CDBAgent::UpdateClanGrade(uint16 sClanID, uint8 byFlag, uint16 sCapeID)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1596,7 +1589,7 @@ void CDBAgent::UpdateClanGrade(uint16 sClanID, uint8 byFlag, uint16 sCapeID)
 
 void CDBAgent::UpdateBattleEvent(string & strCharID, uint8 bNation)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1607,7 +1600,7 @@ void CDBAgent::UpdateBattleEvent(string & strCharID, uint8 bNation)
 
 void CDBAgent::AccountLogout(string & strAccountID)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_AccountDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_AccountDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1618,7 +1611,7 @@ void CDBAgent::AccountLogout(string & strAccountID)
 
 void CDBAgent::UpdateConCurrentUserCount(int nServerNo, int nZoneNo, int nCount)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_AccountDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_AccountDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1630,7 +1623,7 @@ void CDBAgent::UpdateConCurrentUserCount(int nServerNo, int nZoneNo, int nCount)
 // but the client doesn't seem to care if it's over 1
 uint8 CDBAgent::GetUnreadLetterCount(string & strCharID)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return 0;
 
@@ -1649,7 +1642,7 @@ uint8 CDBAgent::GetUnreadLetterCount(string & strCharID)
 
 bool CDBAgent::GetLetterList(string & strCharID, Packet & result, bool bNewLettersOnly /* = true*/)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1714,7 +1707,7 @@ int8 CDBAgent::SendLetter(string & strSenderID, string & strRecipientID, string 
 	uint16 sCount = 0, sDurability = 0;
 	int8 bRet = 0;
 
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return 0;
 
@@ -1748,7 +1741,7 @@ int8 CDBAgent::SendLetter(string & strSenderID, string & strRecipientID, string 
 
 bool CDBAgent::ReadLetter(string & strCharID, uint32 nLetterID, string & strMessage)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -1769,7 +1762,7 @@ bool CDBAgent::ReadLetter(string & strCharID, uint32 nLetterID, string & strMess
 int8 CDBAgent::GetItemFromLetter(string & strCharID, uint32 nLetterID, uint32 & nItemID, uint16 & sCount, uint16 & sDurability, uint32 & nCoins, uint64 & nSerialNum, uint32 & nUserSeal)
 {
 	int8 bRet = -1; // error
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return bRet;
 
@@ -1793,7 +1786,7 @@ int8 CDBAgent::GetItemFromLetter(string & strCharID, uint32 nLetterID, uint32 & 
 
 void CDBAgent::DeleteLetter(string & strCharID, uint32 nLetterID)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1815,7 +1808,7 @@ void CDBAgent::DeleteLetter(string & strCharID, uint32 nLetterID)
 */
 void CDBAgent::UpdateElectionStatus(uint8 byType, uint8 byNation)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1876,7 +1869,7 @@ void CDBAgent::UpdateElectionStatus(uint8 byType, uint8 byNation)
 */
 void CDBAgent::UpdateElectionList(uint8 byDBType, uint8 byType, uint8 byNation, uint16 sKnights, uint32 nAmount, string & strNominee)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -1902,7 +1895,7 @@ void CDBAgent::UpdateElectionList(uint8 byDBType, uint8 byType, uint8 byNation, 
 int16 CDBAgent::UpdateCandidacyRecommend(std::string & strNominator, std::string & strNominee, uint8 byNation)
 {
 	int16 sRet = -6;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return sRet;
 
@@ -1929,7 +1922,7 @@ int16 CDBAgent::UpdateCandidacyRecommend(std::string & strNominator, std::string
 int16 CDBAgent::UpdateElectionVoteList(uint8 byNation, std::string & strVoterAccountID, std::string & strVoterUserID, std::string & strNominee)
 {
 	int16 bRet = -6; // error
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return bRet;
 
@@ -1953,7 +1946,7 @@ int16 CDBAgent::UpdateElectionVoteList(uint8 byNation, std::string & strVoterAcc
 */
 void CDBAgent::GetElectionResults(uint8 byNation)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2022,7 +2015,7 @@ void CDBAgent::GetElectionResults(uint8 byNation)
 */
 void CDBAgent::UpdateCandidacyNoticeBoard(string & strCharID, uint8 byNation, string & strNotice)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2037,7 +2030,7 @@ void CDBAgent::UpdateCandidacyNoticeBoard(string & strCharID, uint8 byNation, st
 
 void CDBAgent::UpdateNoahOrExpEvent(uint8 byType, uint8 byNation, uint8 byAmount, uint8 byDay, uint8 byHour, uint8 byMinute, uint16 sDuration)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2051,7 +2044,7 @@ void CDBAgent::UpdateNoahOrExpEvent(uint8 byType, uint8 byNation, uint8 byAmount
 
 void CDBAgent::UpdateKingSystemDB(uint8 byNation, uint32 nNationalTreasury, uint32 KingTax)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2067,7 +2060,7 @@ void CDBAgent::UpdateKingSystemDB(uint8 byNation, uint32 nNationalTreasury, uint
 
 void CDBAgent::InsertPrizeEvent(uint8 byType, uint8 byNation, uint32 nCoins, std::string & strCharID)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2084,7 +2077,7 @@ void CDBAgent::InsertPrizeEvent(uint8 byType, uint8 byNation, uint32 nCoins, std
 #pragma region CDBAgent::InsertTaxEvent(uint8 opcode, uint8 TerritoryTariff, uint8 Nation, uint32 TerritoryTax)
 void CDBAgent::InsertTaxEvent(uint8 opcode, uint8 TerritoryTariff, uint8 Nation, uint32 TerritoryTax)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2098,7 +2091,7 @@ void CDBAgent::InsertTaxEvent(uint8 opcode, uint8 TerritoryTariff, uint8 Nation,
 #pragma region CDBAgent::UpdateNationIntro(uint32 iServerNo, uint8 nation, std::string & strKingName, std::string &strKingNotice)
 void CDBAgent::UpdateNationIntro(uint32 iServerNo, uint8 nation, std::string & strKingName, std::string &strKingNotice)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_AccountDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_AccountDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2135,7 +2128,7 @@ void CDBAgent::UpdateNationIntro(uint32 iServerNo, uint8 nation, std::string & s
 */
 void CDBAgent::ResetLoyaltyMonthly()
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2154,7 +2147,7 @@ void CDBAgent::ClearRemainUsers()
 	if (pInfo == nullptr)
 		return;
 
-	unique_ptr<OdbcCommand> dbCommand(m_AccountDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_AccountDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2165,7 +2158,7 @@ void CDBAgent::ClearRemainUsers()
 
 void CDBAgent::InsertUserDailyOp(_USER_DAILY_OP * pUserDailyOp)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2177,7 +2170,7 @@ void CDBAgent::InsertUserDailyOp(_USER_DAILY_OP * pUserDailyOp)
 
 void CDBAgent::UpdateUserDailyOp(std::string strUserId, uint8 type, int32 sUnixTime)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2188,7 +2181,7 @@ void CDBAgent::UpdateUserDailyOp(std::string strUserId, uint8 type, int32 sUnixT
 
 void CDBAgent::UpdateRanks()
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2199,7 +2192,7 @@ void CDBAgent::UpdateRanks()
 int8 CDBAgent::NationTransfer(std::string strAccountID)
 {
 	int8 bRet = 3;
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -2220,7 +2213,7 @@ int8 CDBAgent::NationTransfer(std::string strAccountID)
 */
 void CDBAgent::UpdateAccountKnightCash(string & strAccountID, uint32 KnightCash)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_AccountDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_AccountDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2231,7 +2224,7 @@ void CDBAgent::UpdateAccountKnightCash(string & strAccountID, uint32 KnightCash)
 
 void CDBAgent::UpdateSiege(int16 m_sCastleIndex, int16 m_sMasterKnights, int16 m_bySiegeType, int16 m_byWarDay, int16 m_byWarTime, int16 m_byWarMinute)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2241,7 +2234,7 @@ void CDBAgent::UpdateSiege(int16 m_sCastleIndex, int16 m_sMasterKnights, int16 m
 
 void CDBAgent::UpdateSiegeTax(uint8 Zone, int16 ZoneTarrif)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 
 	if (dbCommand.get() == nullptr)
 		return;
@@ -2265,7 +2258,7 @@ void CDBAgent::UpdateSiegeTax(uint8 Zone, int16 ZoneTarrif)
 
 uint16 CDBAgent::GetClanIDWithCharID(string & strCharID)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -2288,7 +2281,7 @@ uint16 CDBAgent::GetClanIDWithCharID(string & strCharID)
 
 void CDBAgent::LoadLadderRankList(Packet & result, uint8 bNation, uint8& count)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2326,7 +2319,7 @@ void CDBAgent::LoadLadderRankList(Packet & result, uint8 bNation, uint8& count)
 
 void CDBAgent::LoadKnightsLeaderList(Packet & result, uint8 bNation, uint8& count)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2369,7 +2362,7 @@ void CDBAgent::LoadKnightsLeaderList(Packet & result, uint8 bNation, uint8& coun
 
 bool CDBAgent::LoadSealInfo(string & CharID, uint8 & blevel, uint16 & bExp, uint8 & bRace, uint16 & bJob, uint8 & STR, uint8 & STA, uint8 & DEX, uint8 & INT, uint8 & CHA, uint32 & nGold, ByteBuffer & SkillArray, ByteBuffer & bstrItem)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -2411,7 +2404,7 @@ bool CDBAgent::LoadSealInfo(string & CharID, uint8 & blevel, uint16 & bExp, uint
 
 bool CDBAgent::CharacterSealSave(string strCharID, uint64 bSerial, uint32 SealSerial, uint8 bRaceSatis, uint16 sClass, uint8 bLevel, uint16 pExp, uint8 & STR, uint8 & STA, uint8 & DEX, uint8 & INT, uint8 & CHA, uint32 & nGold, ByteBuffer & bstrSkill, ByteBuffer & bstrItem)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -2480,7 +2473,7 @@ bool CDBAgent::CharacterSealSave(string strCharID, uint64 bSerial, uint32 SealSe
 
 bool CDBAgent::CharacterSealDelete(string CharID)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return false;
 
@@ -2497,7 +2490,7 @@ bool CDBAgent::CharacterSealDelete(string CharID)
 
 void CDBAgent::UpdateAccountChar(string AccountID, string strChardID, uint8 bRent/* = 0*/)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 
@@ -2510,7 +2503,7 @@ void CDBAgent::UpdateAccountChar(string AccountID, string strChardID, uint8 bRen
 
 void CDBAgent::LoadSealPasswd(std::string AccountID, std::string & strPasswd)
 {
-	unique_ptr<OdbcCommand> dbCommand(m_GameDB->CreateCommand());
+	unique_ptr<MySqlCommand> dbCommand(m_GameDB->CreateCommand());
 	if (dbCommand.get() == nullptr)
 		return;
 

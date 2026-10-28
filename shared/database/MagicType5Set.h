@@ -1,10 +1,10 @@
 #pragma once
 
-class CMagicType5Set : public OdbcRecordset
+class CMagicType5Set : public MySqlRecordset
 {
 public:
-	CMagicType5Set(OdbcConnection * dbConnection, Magictype5Array * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMagicType5Set(MySqlConnection * dbConnection, Magictype5Array * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAGIC_TYPE5"); }
 	virtual tstring GetColumns() { return _T("iNum, Type, ExpRecover, NeedStone"); }

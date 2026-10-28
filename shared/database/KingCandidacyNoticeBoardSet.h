@@ -1,10 +1,10 @@
 #pragma once
 
-class CKingCandidacyNoticeBoardSet : public OdbcRecordset
+class CKingCandidacyNoticeBoardSet : public MySqlRecordset
 {
 public:
-	CKingCandidacyNoticeBoardSet(OdbcConnection * dbConnection, KingSystemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CKingCandidacyNoticeBoardSet(MySqlConnection * dbConnection, KingSystemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("KING_CANDIDACY_NOTICE_BOARD"); }
 	virtual tstring GetColumns() { return _T("byNation, strUserID, strNotice"); }

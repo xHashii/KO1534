@@ -1,10 +1,10 @@
 #pragma once
 
-class CMakeLareItemTableSet : public OdbcRecordset
+class CMakeLareItemTableSet : public MySqlRecordset
 {
 public:
-	CMakeLareItemTableSet(OdbcConnection * dbConnection, MakeLareItemTableArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMakeLareItemTableSet(MySqlConnection * dbConnection, MakeLareItemTableArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAKE_ITEM_LARECODE"); }
 	virtual tstring GetColumns() { return _T("byLevelGrade, sLareItem, sMagicItem, sGereralItem"); }

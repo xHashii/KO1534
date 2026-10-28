@@ -27,18 +27,18 @@
     <ClCompile Include="ReferenceObject.cpp" />
     <ClCompile Include="CircularBuffer.cpp" />
     <ClCompile Include="Condition.cpp" />
-    <ClCompile Include="database\OdbcCommand.cpp" />
-    <ClCompile Include="database\OdbcConnection.cpp" />
-    <ClCompile Include="database\OdbcParameter.cpp" />
-    <ClCompile Include="database\OdbcRecordset.cpp" />
+    <ClCompile Include="database\MySqlCommand.cpp" />
+    <ClCompile Include="database\MySqlConnection.cpp" />
+    <ClCompile Include="database\MySqlParameter.cpp" />
+    <ClCompile Include="database\MySqlRecordset.cpp" />
     <ClCompile Include="ReferenceObject.cpp" />
     <ClCompile Include="RWLock.cpp" />
     <ClCompile Include="CircularBuffer.cpp" />
     <ClCompile Include="Condition.cpp" />
-    <ClCompile Include="database\OdbcCommand.cpp" />
-    <ClCompile Include="database\OdbcConnection.cpp" />
-    <ClCompile Include="database\OdbcParameter.cpp" />
-    <ClCompile Include="database\OdbcRecordset.cpp" />
+    <ClCompile Include="database\MySqlCommand.cpp" />
+    <ClCompile Include="database\MySqlConnection.cpp" />
+    <ClCompile Include="database\MySqlParameter.cpp" />
+    <ClCompile Include="database\MySqlRecordset.cpp" />
     <ClCompile Include="JvCryption.cpp" />
     <ClCompile Include="KOSocket.cpp" />
     <ClCompile Include="ReferenceObject.cpp" />
@@ -47,16 +47,16 @@
     <ClCompile Include="SocketMgr.cpp" />
     <ClCompile Include="SocketOpsWin32.cpp" />
     <ClCompile Include="SocketWin32.cpp" />
-    <ClCompile Include="database\OdbcRecordset.cpp">
+    <ClCompile Include="database\MySqlRecordset.cpp">
       <Filter>Database</Filter>
     </ClCompile>
-    <ClCompile Include="database\OdbcCommand.cpp">
+    <ClCompile Include="database\MySqlCommand.cpp">
       <Filter>Database</Filter>
     </ClCompile>
-    <ClCompile Include="database\OdbcConnection.cpp">
+    <ClCompile Include="database\MySqlConnection.cpp">
       <Filter>Database</Filter>
     </ClCompile>
-    <ClCompile Include="database\OdbcParameter.cpp">
+    <ClCompile Include="database\MySqlParameter.cpp">
       <Filter>Database</Filter>
     </ClCompile>
     <ClCompile Include="KOSocket.cpp">
@@ -121,16 +121,16 @@
       <Filter>Networking</Filter>
     </ClCompile>
     <ClCompile Include="HardwareInformation.cpp" />
-    <ClCompile Include="database\OdbcCommand.cpp">
+    <ClCompile Include="database\MySqlCommand.cpp">
       <Filter>Database</Filter>
     </ClCompile>
-    <ClCompile Include="database\OdbcConnection.cpp">
+    <ClCompile Include="database\MySqlConnection.cpp">
       <Filter>Database</Filter>
     </ClCompile>
-    <ClCompile Include="database\OdbcParameter.cpp">
+    <ClCompile Include="database\MySqlParameter.cpp">
       <Filter>Database</Filter>
     </ClCompile>
-    <ClCompile Include="database\OdbcRecordset.cpp">
+    <ClCompile Include="database\MySqlRecordset.cpp">
       <Filter>Database</Filter>
     </ClCompile>
     <ClCompile Include="JvCryption.cpp">
@@ -163,16 +163,16 @@
     <ClInclude Include="crc32.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="signal_handler.h" />
-    <ClInclude Include="database\OdbcParameter.h">
+    <ClInclude Include="database\MySqlParameter.h">
       <Filter>Database</Filter>
     </ClInclude>
-    <ClInclude Include="database\OdbcRecordset.h">
+    <ClInclude Include="database\MySqlRecordset.h">
       <Filter>Database</Filter>
     </ClInclude>
-    <ClInclude Include="database\OdbcCommand.h">
+    <ClInclude Include="database\MySqlCommand.h">
       <Filter>Database</Filter>
     </ClInclude>
-    <ClInclude Include="database\OdbcConnection.h">
+    <ClInclude Include="database\MySqlConnection.h">
       <Filter>Database</Filter>
     </ClInclude>
     <ClInclude Include="ListenSocketWin32.h">

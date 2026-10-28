@@ -1,10 +1,10 @@
 #pragma once
 
-class CSetItemTableSet : public OdbcRecordset
+class CSetItemTableSet : public MySqlRecordset
 {
 public:
-	CSetItemTableSet(OdbcConnection * dbConnection, SetItemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CSetItemTableSet(MySqlConnection * dbConnection, SetItemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("SET_ITEM"); }
 	virtual tstring GetColumns() 

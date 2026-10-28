@@ -1,10 +1,10 @@
 #pragma once
 
-class CNpcPosSet : public OdbcRecordset
+class CNpcPosSet : public MySqlRecordset
 {
 public:
-	CNpcPosSet(OdbcConnection * dbConnection, void * dummy) 
-		: OdbcRecordset(dbConnection) {}
+	CNpcPosSet(MySqlConnection * dbConnection, void * dummy) 
+		: MySqlRecordset(dbConnection) {}
 
 	virtual tstring GetTableName() { return _T("K_NPCPOS"); }
 	virtual tstring GetColumns() { return _T("ZoneID, NpcID, ActType, RegenType, DungeonFamily, SpecialType, TrapNumber, LeftX, TopZ, RightX, BottomZ, LimitMinX, LimitMinZ, LimitMaxX, LimitMaxZ, NumNPC, RegTime, byDirection, DotCnt, path"); }

@@ -1,10 +1,10 @@
 #pragma once
 
-class CNpcTableSet : public OdbcRecordset
+class CNpcTableSet : public MySqlRecordset
 {
 public:
-	CNpcTableSet(OdbcConnection * dbConnection, NpcTableArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap), m_bMonster(false)
+	CNpcTableSet(MySqlConnection * dbConnection, NpcTableArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap), m_bMonster(false)
 	{
 	}
 
@@ -84,7 +84,7 @@ public:
 class CMonTableSet : public CNpcTableSet
 {
 public:
-	CMonTableSet(OdbcConnection * dbConnection, NpcTableArray * pMap) 
+	CMonTableSet(MySqlConnection * dbConnection, NpcTableArray * pMap) 
 		: CNpcTableSet(dbConnection, pMap)
 	{
 		m_bMonster = true;

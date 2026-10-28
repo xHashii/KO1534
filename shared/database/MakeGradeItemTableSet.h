@@ -1,10 +1,10 @@
 #pragma once
 
-class CMakeGradeItemTableSet : public OdbcRecordset
+class CMakeGradeItemTableSet : public MySqlRecordset
 {
 public:
-	CMakeGradeItemTableSet(OdbcConnection * dbConnection, MakeGradeItemTableArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMakeGradeItemTableSet(MySqlConnection * dbConnection, MakeGradeItemTableArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAKE_ITEM_GRADECODE"); }
 	virtual tstring GetColumns() { return _T("byItemIndex, byGrade_1, byGrade_2, byGrade_3, byGrade_4, byGrade_5, byGrade_6, byGrade_7, byGrade_8, byGrade_9"); }

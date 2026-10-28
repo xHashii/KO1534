@@ -1,10 +1,10 @@
  #pragma once
 
-class CEventTriggerSet : public OdbcRecordset
+class CEventTriggerSet : public MySqlRecordset
 {
 public:
-	CEventTriggerSet(OdbcConnection * dbConnection, EventTriggerArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CEventTriggerSet(MySqlConnection * dbConnection, EventTriggerArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("EVENT_TRIGGER"); }
 	virtual tstring GetColumns() { return _T("nIndex, bNpcType, sNpcID, nTriggerNum"); }

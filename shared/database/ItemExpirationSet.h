@@ -1,10 +1,10 @@
 #pragma once
 
-class CItemExpirationSet : public OdbcRecordset
+class CItemExpirationSet : public MySqlRecordset
 {
 public:
-	CItemExpirationSet(OdbcConnection * dbConnection, ExpirationArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CItemExpirationSet(MySqlConnection * dbConnection, ExpirationArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("ITEM_EXPIRATION"); }
 	virtual tstring GetColumns() { return _T("nItemID,nExpirationDay"); }

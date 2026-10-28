@@ -16,6 +16,7 @@ class CUser;
 #include "User.h"
 #include "AISocket.h"
 #include "../shared/ClientSocketMgr.h"
+#include "../shared/database/DbConfigReader.h"
 
 typedef std::map<std::string, CUser *>  NameMap;
 typedef  std::map<uint16, uint16>          ForgettenTempleMonsterList;
@@ -620,10 +621,8 @@ public:
 private:
 	CLuaEngine	m_luaEngine;
 
-	std::string m_strGameDSN, m_strAccountDSN;
-	std::string m_strGameUID, m_strAccountUID;
-	std::string m_strGamePWD, m_strAccountPWD;
-	bool m_bMarsEnabled;
+	// MySQL connection settings read from [DATABASE] / [ACCOUNT_DATABASE].
+	MySqlConfig m_gameDbConfig, m_accountDbConfig;
 
 	bool ProcessServerCommand(std::string & command);
 

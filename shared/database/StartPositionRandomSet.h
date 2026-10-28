@@ -1,10 +1,10 @@
  #pragma once
 
-class CStartPositionRandomSet : public OdbcRecordset
+class CStartPositionRandomSet : public MySqlRecordset
 {
 public:
-	CStartPositionRandomSet(OdbcConnection * dbConnection, StartPositionRandomArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CStartPositionRandomSet(MySqlConnection * dbConnection, StartPositionRandomArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("START_POSITION_RANDOM"); }
 	virtual tstring GetColumns() { return _T("ZoneID, PosX, PosZ, Radius"); }

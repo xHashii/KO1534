@@ -1,10 +1,10 @@
 #pragma once
 
-class CItemOpSet : public OdbcRecordset
+class CItemOpSet : public MySqlRecordset
 {
 public:
-	CItemOpSet(OdbcConnection * dbConnection, ItemOpArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CItemOpSet(MySqlConnection * dbConnection, ItemOpArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("ITEM_OP"); }
 	virtual tstring GetColumns() { return _T("nItemID, bTriggerType, nSkillID, bTriggerRate"); }

@@ -1,10 +1,10 @@
 #pragma once
 
-class CRentalItemSet : public OdbcRecordset
+class CRentalItemSet : public MySqlRecordset
 {
 public:
-	CRentalItemSet(OdbcConnection * dbConnection, RentalItemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CRentalItemSet(MySqlConnection * dbConnection, RentalItemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("RENTAL_ITEM"); }
 	virtual tstring GetColumns() { return _T("nRentalIndex, nItemIndex, sDurability, nSerialNumber, byRegType, byItemType, byClass, sRentalTime, nRentalMoney, strLenderCharID, strBorrowerCharID"); }

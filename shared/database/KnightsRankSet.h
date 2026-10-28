@@ -1,10 +1,10 @@
 #pragma once
 
-class CKnightsRankSet : public OdbcRecordset
+class CKnightsRankSet : public MySqlRecordset
 {
 public:
-	CKnightsRankSet(OdbcConnection * dbConnection, void * dummy) 
-		: OdbcRecordset(dbConnection), nKarusCount(0), nElmoCount(0) 
+	CKnightsRankSet(MySqlConnection * dbConnection, void * dummy) 
+		: MySqlRecordset(dbConnection), nKarusCount(0), nElmoCount(0) 
 	{
 		memset(&strKarusCaptain, 0, sizeof(strKarusCaptain));
 		memset(&strElmoCaptain, 0, sizeof(strElmoCaptain));

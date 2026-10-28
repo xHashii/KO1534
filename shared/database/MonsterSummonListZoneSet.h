@@ -1,10 +1,10 @@
  #pragma once
 
-class CMonsterSummonListZoneSet : public OdbcRecordset
+class CMonsterSummonListZoneSet : public MySqlRecordset
 {
 public:
-	CMonsterSummonListZoneSet(OdbcConnection * dbConnection, MonsterSummonListZoneArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMonsterSummonListZoneSet(MySqlConnection * dbConnection, MonsterSummonListZoneArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MONSTER_SUMMON_LIST_ZONE"); }
 	virtual tstring GetColumns() { return _T("nIndex, ZoneID, sSid, byFamily"); }

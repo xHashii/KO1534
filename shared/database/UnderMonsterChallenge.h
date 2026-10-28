@@ -1,10 +1,10 @@
 #pragma once
 
-class CUnderMonsterChallenge : public OdbcRecordset
+class CUnderMonsterChallenge : public MySqlRecordset
 {
 public:
-	CUnderMonsterChallenge(OdbcConnection * dbConnection, UnderMonsterChallengeArray * pMap) 
-    : OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CUnderMonsterChallenge(MySqlConnection * dbConnection, UnderMonsterChallengeArray * pMap) 
+    : MySqlRecordset(dbConnection), m_pMap(pMap) {}
 	
 	virtual tstring GetTableName() { return _T("UNDER_MONSTER_CHALLENGE"); }
 	virtual tstring GetColumns() { return _T("sIndex, bStartTime1, bStartTime2, bStartTime3, bLevelMin, bLevelMax"); }

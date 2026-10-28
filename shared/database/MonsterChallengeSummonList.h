@@ -1,10 +1,10 @@
 #pragma once
  
-class CMonsterChallengeSummonList : public OdbcRecordset
+class CMonsterChallengeSummonList : public MySqlRecordset
 {
 public:
-	CMonsterChallengeSummonList(OdbcConnection * dbConnection, MonsterChallengeSummonListArray * pMap) 
-    : OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMonsterChallengeSummonList(MySqlConnection * dbConnection, MonsterChallengeSummonListArray * pMap) 
+    : MySqlRecordset(dbConnection), m_pMap(pMap) {}
 	
 	virtual tstring GetTableName() { return _T("MONSTER_CHALLENGE_SUMMON_LIST"); }
 	virtual tstring GetColumns() { return _T("sIndex, bLevel, bStage, bStageLevel, sTime, sSid, sCount, sPosX, sPosZ, bRange"); }

@@ -3,7 +3,7 @@
 class CUserKnightsRankSet : public CUserPersonalRankSet
 {
 public:
-	CUserKnightsRankSet(OdbcConnection * dbConnection, UserNameRankMap * pMap) 
+	CUserKnightsRankSet(MySqlConnection * dbConnection, UserNameRankMap * pMap) 
 		: CUserPersonalRankSet(dbConnection, pMap) {}
 
 	virtual tstring GetTableName() { return _T("USER_KNIGHTS_RANK"); }

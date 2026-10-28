@@ -1,10 +1,10 @@
 #pragma once
 
-class CQuestMonsterSet : public OdbcRecordset
+class CQuestMonsterSet : public MySqlRecordset
 {
 public:
-	CQuestMonsterSet(OdbcConnection * dbConnection, QuestMonsterArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CQuestMonsterSet(MySqlConnection * dbConnection, QuestMonsterArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("QUEST_MONSTER"); }
 	virtual tstring GetColumns() { return _T("sQuestNum, sNum1a, sNum1b, sNum1c, sNum1d, sCount1, sNum2a, sNum2b, sNum2c, sNum2d, sCount2, sNum3a, sNum3b, sNum3c, sNum3d, sCount3, sNum4a, sNum4b, sNum4c, sNum4d, sCount4"); }

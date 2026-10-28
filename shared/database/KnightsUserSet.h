@@ -1,10 +1,10 @@
 #pragma once
 
-class CKnightsUserSet : public OdbcRecordset
+class CKnightsUserSet : public MySqlRecordset
 {
 public:
-	CKnightsUserSet(OdbcConnection * dbConnection, void * dummy) 
-		: OdbcRecordset(dbConnection) {}
+	CKnightsUserSet(MySqlConnection * dbConnection, void * dummy) 
+		: MySqlRecordset(dbConnection) {}
 
 	virtual tstring GetTableName() { return _T("KNIGHTS_USER"); }
 	virtual tstring GetColumns() { return _T("sIDNum, strUserID, nDonatedNP"); }

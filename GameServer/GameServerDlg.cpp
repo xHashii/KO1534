@@ -87,9 +87,7 @@ bool CGameServerDlg::Startup()
 
 	GetTimeFromIni();
 
-	if (!g_DBAgent.Startup(m_bMarsEnabled, 
-		m_strAccountDSN, m_strAccountUID, m_strAccountPWD, 
-		m_strGameDSN, m_strGameUID, m_strGamePWD)) 
+	if (!g_DBAgent.Startup(m_accountDbConfig, m_gameDbConfig)) 
 	{
 		printf("ERROR: Unable to connect to the database using the details configured.\n");
 		return false;
@@ -238,22 +236,15 @@ void CGameServerDlg::GetTimeFromIni()
 	int year=0, month=0, date=0, hour=0, server_count=0, sgroup_count = 0, i=0;
 	char ipkey[20];
 
-	// This is so horrible.
-	ini.GetString("ODBC", "GAME_DSN", "KN_online", m_strGameDSN, false);
-	ini.GetString("ODBC", "GAME_UID", "Alpha", m_strGameUID, false);
-	ini.GetString("ODBC", "GAME_PWD", "Alpha1534", m_strGamePWD, false);
+	// MySQL connection settings (no DSN: host/port/database/user/password).
+	// The world database and the account database may live on different
+	// servers; both default to the same [DATABASE] block.
+	m_gameDbConfig = ReadDatabaseConfig(ini, "DATABASE");
+	m_accountDbConfig = ReadDatabaseConfig(ini, "ACCOUNT_DATABASE");
 
-	m_bMarsEnabled = ini.GetBool("ODBC", "GAME_MARS", false);
-
-	ini.GetString("ODBC", "ACCOUNT_DSN", "KN_online", m_strAccountDSN, false);
-	ini.GetString("ODBC", "ACCOUNT_UID", "Alpha", m_strAccountUID, false);
-	ini.GetString("ODBC", "ACCOUNT_PWD", "Alpha1534", m_strAccountPWD, false);
-
-	bool bMarsEnabled = ini.GetBool("ODBC", "ACCOUNT_MARS", false);
-	
-	// Both need to be enabled to use MARS.
-	if (!m_bMarsEnabled || !bMarsEnabled)
-		m_bMarsEnabled = false;
+	// ACCOUNT_DATABASE is optional: fall back to [DATABASE].
+	if (!m_accountDbConfig.IsValid())
+		m_accountDbConfig = m_gameDbConfig;
 
 	m_byWeather = ini.GetInt("TIMER", "WEATHER", 1);
 

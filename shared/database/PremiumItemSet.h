@@ -1,10 +1,10 @@
 #pragma once
 
-class CPremiumItemSet : public OdbcRecordset
+class CPremiumItemSet : public MySqlRecordset
 {
 public:
-	CPremiumItemSet(OdbcConnection * dbConnection, PremiumItemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CPremiumItemSet(MySqlConnection * dbConnection, PremiumItemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("PREMIUM_ITEM"); }
 	virtual tstring GetColumns() { return _T("Type, ExpRestorePercent, NoahPercent, DropPercent, BonusLoyalty, RepairDiscountPercent, ItemSellPercent"); }

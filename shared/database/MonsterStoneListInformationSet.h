@@ -1,10 +1,10 @@
 #pragma once
 
-class CMonsterStoneListInformationSet : public OdbcRecordset
+class CMonsterStoneListInformationSet : public MySqlRecordset
 {
 public:
-	CMonsterStoneListInformationSet(OdbcConnection * dbConnection, MonsterStoneListInformationArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMonsterStoneListInformationSet(MySqlConnection * dbConnection, MonsterStoneListInformationArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MONSTER_STONE_RESPAWN_LIST"); }
 	virtual tstring GetColumns() { return _T("sIndex, sSid, bType, sPid, ZoneID, isBoss, Family, byDirection, sCount, X, Y, Z"); }

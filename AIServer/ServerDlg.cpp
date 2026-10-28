@@ -7,7 +7,7 @@
 #include "NpcThread.h"
 #include "../GameServer/MagicProcess.h"
 
-#include "../shared/database/OdbcRecordset.h"
+#include "../shared/database/MySqlRecordset.h"
 #include "../shared/database/MagicTableSet.h"
 #include "../shared/database/MagicType1Set.h"
 #include "../shared/database/MagicType2Set.h"
@@ -71,12 +71,14 @@ bool CServerDlg::Startup()
 	//----------------------------------------------------------------------
 	GetServerInfoIni();
 
-	if (!m_GameDB.Connect(m_strGameDSN, m_strGameUID, m_strGamePWD, false))
+	if (!m_GameDB.Connect(m_dbConfig))
 	{
-		OdbcError *pError = m_GameDB.GetError();
-		printf("ERROR: Could not connect to the database server, received error:\n%s\n", 
-			pError->ErrorMessage.c_str());
-		delete pError;
+		// GetError() returns a pointer owned by the connection: do not delete it
+		// (the previous SQL Server code did, which double-freed on shutdown).
+		MySqlError *pError = m_GameDB.GetError();
+		printf("ERROR: Could not connect to the database server (%s), received error:\n%s\n",
+			m_dbConfig.Describe().c_str(),
+			pError != nullptr ? pError->ErrorMessage.c_str() : "unknown");
 		return false;
 	}
 
@@ -215,7 +217,7 @@ bool CServerDlg::CreateNpcThread()
 	return true;
 }
 
-bool CServerDlg::LoadSpawnCallback(OdbcCommand *dbCommand)
+bool CServerDlg::LoadSpawnCallback(MySqlCommand *dbCommand)
 {
 	// Avoid allocating stack space for these.
 	// This method will only ever run in the same thread.
@@ -844,9 +846,10 @@ MAP * CServerDlg::GetZoneByID(int zonenumber)
 void CServerDlg::GetServerInfoIni()
 {
 	CIni ini("./AIServer.ini");
-	ini.GetString("ODBC", "GAME_DSN", "KN_online", m_strGameDSN, false);
-	ini.GetString("ODBC", "GAME_UID", "Alpha", m_strGameUID, false);
-	ini.GetString("ODBC", "GAME_PWD", "Alpha1534", m_strGamePWD, false);
+	// The AI server does not query the database itself (it receives its map
+	// data from the game server), but the settings are read and validated so a
+	// copy/pasted configuration cannot go unnoticed.
+	m_dbConfig = ReadDatabaseConfig(ini, "DATABASE");
 
 	m_AIServerPort = ini.GetInt("SETTINGS","PORT", 10020);
 }

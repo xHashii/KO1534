@@ -1,10 +1,10 @@
 #pragma once
 
-class CKingNominationListSet : public OdbcRecordset
+class CKingNominationListSet : public MySqlRecordset
 {
 public:
-	CKingNominationListSet(OdbcConnection * dbConnection, KingSystemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CKingNominationListSet(MySqlConnection * dbConnection, KingSystemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("KING_NOMINATION_LIST"); }
 	virtual tstring GetColumns() { return _T("Nation, strNominator, strNominee"); }

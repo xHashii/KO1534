@@ -1,10 +1,10 @@
 #pragma once
 	
-class CMagicType6Set : public OdbcRecordset
+class CMagicType6Set : public MySqlRecordset
 {
 public:
-	CMagicType6Set(OdbcConnection * dbConnection, Magictype6Array * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMagicType6Set(MySqlConnection * dbConnection, Magictype6Array * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAGIC_TYPE6"); }
 	virtual tstring GetColumns() { return _T("iNum, Size, TransformID, Duration, MaxHp, MaxMp, Speed, AttackSpeed, TotalHit, TotalAc, TotalHitRate, TotalEvasionRate, TotalFireR, TotalColdR, TotalLightningR, TotalMagicR, TotalDiseaseR, TotalPoisonR, Class, UserSkillUse, NeedItem, SkillSuccessRate, MonsterFriendly, Nation"); }

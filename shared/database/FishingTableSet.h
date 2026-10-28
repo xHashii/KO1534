@@ -1,10 +1,10 @@
 #pragma once
 
-class CFishingTableSet : public OdbcRecordset
+class CFishingTableSet : public MySqlRecordset
 {
 public:
-	CFishingTableSet(OdbcConnection * dbConnection, FishingItemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CFishingTableSet(MySqlConnection * dbConnection, FishingItemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("FISHING_ITEM"); }
 	virtual tstring GetColumns() { return _T("nRate,nItemID,nCount"); }

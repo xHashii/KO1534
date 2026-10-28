@@ -1,10 +1,10 @@
 #pragma once
 
-class CItemExchangeCreashSet : public OdbcRecordset
+class CItemExchangeCreashSet : public MySqlRecordset
 {
 public:
-	CItemExchangeCreashSet(OdbcConnection * dbConnection, ItemExchangeCrashArray *pMap)
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CItemExchangeCreashSet(MySqlConnection * dbConnection, ItemExchangeCrashArray *pMap)
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("ITEM_EXCHANGE_CRASH"); }
 	virtual tstring GetColumns()  { return _T("nIndex, nItemID, nCount, nRate"); } 

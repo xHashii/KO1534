@@ -1,10 +1,10 @@
 #pragma once
 
-class CLevelUpTableSet : public OdbcRecordset
+class CLevelUpTableSet : public MySqlRecordset
 {
 public:
-	CLevelUpTableSet(OdbcConnection * dbConnection, LevelUpArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CLevelUpTableSet(MySqlConnection * dbConnection, LevelUpArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("LEVEL_UP"); }
 	virtual tstring GetColumns() { return _T("[Level], [Exp]"); }

@@ -1,10 +1,10 @@
 #pragma once
 
-class CJuraidMountionListInformationSet : public OdbcRecordset
+class CJuraidMountionListInformationSet : public MySqlRecordset
 {
 public:
-	CJuraidMountionListInformationSet(OdbcConnection * dbConnection, JuraidMountionListInformationArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CJuraidMountionListInformationSet(MySqlConnection * dbConnection, JuraidMountionListInformationArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MONSTER_JURAID_MOUNTAIN_RESPAWN_LIST"); }
 	virtual tstring GetColumns() { return _T("sIndex, sSid, bType, sPid, ZoneID, Family, sCount, X, Y, Z, byDirection, bRadius"); }

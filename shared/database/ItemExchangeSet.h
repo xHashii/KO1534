@@ -1,10 +1,10 @@
 #pragma once
 
-class CItemExchangeSet : public OdbcRecordset
+class CItemExchangeSet : public MySqlRecordset
 {
 public:
-	CItemExchangeSet(OdbcConnection * dbConnection, ItemExchangeArray *pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CItemExchangeSet(MySqlConnection * dbConnection, ItemExchangeArray *pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("ITEM_EXCHANGE"); }
 	virtual tstring GetColumns() 

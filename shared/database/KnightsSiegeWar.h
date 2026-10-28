@@ -1,10 +1,10 @@
  #pragma once
 
-class CKnightsSiegeWarfare : public OdbcRecordset
+class CKnightsSiegeWarfare : public MySqlRecordset
 {
 public:
-	CKnightsSiegeWarfare(OdbcConnection * dbConnection, KnightsSiegeWarfareArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CKnightsSiegeWarfare(MySqlConnection * dbConnection, KnightsSiegeWarfareArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("KNIGHTS_SIEGE_WARFARE"); }
 	virtual tstring GetColumns() { return _T("sCastleIndex, sMasterKnights, bySiegeType, byWarDay, byWarTime, byWarMinute, sChallengeList_1, sChallengeList_2, sChallengeList_3, sChallengeList_4, sChallengeList_5, sChallengeList_6, sChallengeList_7, sChallengeList_8, sChallengeList_9, sChallengeList_10, byWarRequestDay, byWarRequestTime, byWarRequestMinute, byGuerrillaWarDay, byGuerrillaWarTime, byGuerrillaWarMinute, strChallengeList, sMoradonTariff, sDellosTariff, nDungeonCharge, nMoradonTax, nDellosTax, sRequestList_1, sRequestList_2, sRequestList_3, sRequestList_4, sRequestList_5, sRequestList_6, sRequestList_7, sRequestList_8, sRequestList_9, sRequestList_10"); }

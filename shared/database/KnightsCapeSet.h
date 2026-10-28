@@ -1,10 +1,10 @@
 #pragma once
 
-class CKnightsCapeSet : public OdbcRecordset
+class CKnightsCapeSet : public MySqlRecordset
 {
 public:
-	CKnightsCapeSet(OdbcConnection * dbConnection, KnightsCapeArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CKnightsCapeSet(MySqlConnection * dbConnection, KnightsCapeArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("KNIGHTS_CAPE"); }
 	virtual tstring GetColumns() { return _T("sCapeIndex, nBuyPrice, byGrade, nBuyLoyalty, byRanking"); }

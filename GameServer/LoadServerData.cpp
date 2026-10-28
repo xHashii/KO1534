@@ -7,7 +7,7 @@
 #include "DBAgent.h"
 #include "KingSystem.h"
 
-#include "../shared/database/OdbcRecordset.h"
+#include "../shared/database/MySqlRecordset.h"
 #include "../shared/database/ItemTableSet.h"
 #include "../shared/database/SetItemTableSet.h"
 #include "../shared/database/ItemExchangeSet.h"

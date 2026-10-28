@@ -1,10 +1,10 @@
 #pragma once
 
-class CUserItemSet : public OdbcRecordset
+class CUserItemSet : public MySqlRecordset
 {
 public:
-	CUserItemSet(OdbcConnection * dbConnection, UserItemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CUserItemSet(MySqlConnection * dbConnection, UserItemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("USER_ITEMS"); }
 	virtual tstring GetColumns() { return _T("nItemID, nItemSerial"); }

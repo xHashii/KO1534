@@ -1,10 +1,10 @@
 #pragma once
 
-class CObjectPosSet : public OdbcRecordset
+class CObjectPosSet : public MySqlRecordset
 {
 public:
-	CObjectPosSet(OdbcConnection * dbConnection, ObjectEventArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CObjectPosSet(MySqlConnection * dbConnection, ObjectEventArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("K_OBJECTPOS"); }
 	virtual tstring GetColumns() { return _T("ZoneID, Belong, sIndex, Type, ControlNPCID, Status, PosX, PosY, PosZ, byLife"); }

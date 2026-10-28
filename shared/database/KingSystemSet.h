@@ -1,10 +1,10 @@
 #pragma once
 
-class CKingSystemSet : public OdbcRecordset
+class CKingSystemSet : public MySqlRecordset
 {
 public:
-	CKingSystemSet(OdbcConnection * dbConnection, KingSystemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CKingSystemSet(MySqlConnection * dbConnection, KingSystemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("KING_SYSTEM"); }
 	virtual tstring GetColumns() { return _T("byNation, byType, sYear, byMonth, byDay, byHour, byMinute, byImType, sImYear, byImMonth, byImDay, byImHour, byImMinute, byNoahEvent, byNoahEvent_Day, byNoahEvent_Hour, byNoahEvent_Minute, sNoahEvent_Duration, byExpEvent, byExpEvent_Day, byExpEvent_Hour, byExpEvent_Minute, sExpEvent_Duration, nTribute, byTerritoryTariff, nTerritoryTax, nNationalTreasury, strKingName, sKingClanID, strImRequestID"); }

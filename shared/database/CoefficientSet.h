@@ -1,10 +1,10 @@
 #pragma once
 
-class CCoefficientSet : public OdbcRecordset
+class CCoefficientSet : public MySqlRecordset
 {
 public:
-	CCoefficientSet(OdbcConnection * dbConnection, CoefficientArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CCoefficientSet(MySqlConnection * dbConnection, CoefficientArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("COEFFICIENT"); }
 	virtual tstring GetColumns() { return _T("sClass, ShortSword, Sword, Axe, Club, Spear, Pole, Staff, Bow, Hp, Mp, Sp, Ac, Hitrate, Evasionrate"); }

@@ -2,11 +2,11 @@
 
 typedef std::map<uint16, _ZONE_INFO *> ZoneInfoMap;
 
-class CZoneInfoSet : public OdbcRecordset
+class CZoneInfoSet : public MySqlRecordset
 {
 public:
-	CZoneInfoSet(OdbcConnection * dbConnection, ZoneInfoMap * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CZoneInfoSet(MySqlConnection * dbConnection, ZoneInfoMap * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("ZONE_INFO"); }
 

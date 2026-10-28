@@ -1,10 +1,10 @@
 #pragma once
 
-class CStartPositionSet : public OdbcRecordset
+class CStartPositionSet : public MySqlRecordset
 {
 public:
-	CStartPositionSet(OdbcConnection * dbConnection, StartPositionArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CStartPositionSet(MySqlConnection * dbConnection, StartPositionArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("START_POSITION"); }
 	virtual tstring GetColumns() { return _T("ZoneID, sKarusX, sKarusZ, sElmoradX, sElmoradZ, bRangeX, bRangeZ, sKarusGateX, sKarusGateZ, sElmoGateX, sElmoGateZ"); }

@@ -1,10 +1,10 @@
 #pragma once
 
-class CServerResourceSet : public OdbcRecordset
+class CServerResourceSet : public MySqlRecordset
 {
 public:
-	CServerResourceSet(OdbcConnection * dbConnection, ServerResourceArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CServerResourceSet(MySqlConnection * dbConnection, ServerResourceArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("SERVER_RESOURCE"); }
 	virtual tstring GetColumns() { return _T("nResourceID, strResource"); }

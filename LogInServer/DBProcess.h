@@ -1,11 +1,12 @@
 #pragma once
 
-#include "../shared/database/OdbcConnection.h"
+#include "../shared/database/MySqlConnection.h"
 
 class CDBProcess  
 {
 public:
-	bool Connect(std::string & szDSN, std::string & szUser, std::string & szPass);
+	bool Connect(const MySqlConfig & config);
+	void ResetErrors() { m_dbConnection.ResetErrors(); }
 
 	bool LoadVersionList();
 	bool LoadUserCountList();
@@ -14,5 +15,5 @@ public:
 	int16 AccountPremium(std::string & strAccountID);
 
 private:
-	OdbcConnection m_dbConnection;
+	MySqlConnection m_dbConnection;
 };

@@ -1,10 +1,10 @@
 #pragma once
 
-class CMakeWeaponTableSet : public OdbcRecordset
+class CMakeWeaponTableSet : public MySqlRecordset
 {
 public:
-	CMakeWeaponTableSet(OdbcConnection * dbConnection, MakeWeaponItemTableArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMakeWeaponTableSet(MySqlConnection * dbConnection, MakeWeaponItemTableArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MAKE_WEAPON"); }
 	virtual tstring GetColumns() { return _T("byLevel, sClass_1, sClass_2, sClass_3, sClass_4, sClass_5, sClass_6, sClass_7, sClass_8, sClass_9, sClass_10, sClass_11, sClass_12"); }

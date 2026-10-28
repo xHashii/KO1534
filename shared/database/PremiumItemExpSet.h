@@ -1,10 +1,10 @@
 #pragma once
 
-class CPremiumItemExpSet : public OdbcRecordset
+class CPremiumItemExpSet : public MySqlRecordset
 {
 public:
-	CPremiumItemExpSet(OdbcConnection * dbConnection, PremiumItemExpArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CPremiumItemExpSet(MySqlConnection * dbConnection, PremiumItemExpArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("PREMIUM_ITEM_EXP"); }
 	virtual tstring GetColumns() { return _T("nIndex, Type, MinLevel, MaxLevel, sPercent"); }

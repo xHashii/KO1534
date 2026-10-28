@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../shared/database/OdbcConnection.h"
+#include "../shared/database/MySqlConnection.h"
 #include "KingSystem.h"
 
 enum UserUpdateType
@@ -44,15 +44,10 @@ public:
 	CDBAgent();
 
 
-	bool Startup(bool bMarsEnabled,
-		tstring & strAccountDSN, tstring & strAccountUID, tstring & strAccountPWD,
-		tstring & strGameDSN, tstring & strGameUID, tstring & strGamePWD);
+	bool Startup(const MySqlConfig & accountConfig, const MySqlConfig & gameConfig);
+	bool Connect(const MySqlConfig & accountConfig, const MySqlConfig & gameConfig);
 
-	bool Connect(bool bMarsEnabled,
-		tstring & strAccountDSN, tstring & strAccountUID, tstring & strAccountPWD,
-		tstring & strGameDSN, tstring & strGameUID, tstring & strGamePWD);
-
-	void ReportSQLError(OdbcError *pError);
+	void ReportSQLError(MySqlError *pError);
 
 	int8 AccountLogin(std::string & strAccountID, std::string & strPasswd);
 	uint8 NationSelect(std::string & strAccountID, uint8 bNation);
@@ -152,7 +147,7 @@ public:
 	~CDBAgent();
 
 private:
-	OdbcConnection *m_GameDB, *m_AccountDB;
+	MySqlConnection *m_GameDB, *m_AccountDB;
 	std::recursive_mutex m_lock;
 
 	friend class CGameServerDlg;

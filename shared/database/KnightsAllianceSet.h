@@ -1,10 +1,10 @@
 #pragma once
 
-class CKnightsAllianceSet : public OdbcRecordset
+class CKnightsAllianceSet : public MySqlRecordset
 {
 public:
-	CKnightsAllianceSet(OdbcConnection * dbConnection, KnightsAllianceArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CKnightsAllianceSet(MySqlConnection * dbConnection, KnightsAllianceArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("KNIGHTS_ALLIANCE"); }
 	virtual tstring GetColumns() { return _T("sMainAllianceKnights, sSubAllianceKnights, sMercenaryClan_1, sMercenaryClan_2"); }

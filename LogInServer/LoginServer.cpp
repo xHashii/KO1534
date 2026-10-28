@@ -35,7 +35,7 @@ bool LoginServer::Startup()
 		return false;
 	}
 
-	if (!m_DBProcess.Connect(m_ODBCName, m_ODBCLogin, m_ODBCPwd)) 
+	if (!m_DBProcess.Connect(m_dbConfig)) 
 	{
 		printf("ERROR: Unable to connect to the database using the details configured.\n");
 		return false;
@@ -136,9 +136,8 @@ void LoginServer::GetInfoFromIni()
 	ini.GetString("DOWNLOAD", "URL", "ftp.yoursite.net", m_strFtpUrl, false);
 	ini.GetString("DOWNLOAD", "PATH", "/patches/", m_strFilePath, false);
 
-	ini.GetString("ODBC", "DSN", "KN_online", m_ODBCName, false);
-	ini.GetString("ODBC", "UID", "Alpha", m_ODBCLogin, false);
-	ini.GetString("ODBC", "PWD", "Alpha1534", m_ODBCPwd, false);
+	// Native MySQL settings; no DSN / driver manager involved.
+	m_dbConfig = ReadDatabaseConfig(ini, "DATABASE");
 
 	m_LoginServerPort = ini.GetInt("SETTINGS","PORT", 15100);
 
@@ -248,18 +247,20 @@ void LoginServer::WriteUserLogFile(string & logMessage)
 	fflush(m_fpUser);
 }
 
-void LoginServer::ReportSQLError(OdbcError *pError)
+void LoginServer::ReportSQLError(MySqlError *pError)
 {
 	if (pError == nullptr)
 		return;
 
 	// This is *very* temporary.
-	string errorMessage = string_format(_T("ODBC error occurred.\r\nSource: %s\r\nError: %s\r\nDescription: %s\n"),
+	string errorMessage = string_format(_T("MySQL error occurred.\r\nSource: %s\r\nError: %s\r\nDescription: %s\n"),
 		pError->Source.c_str(), pError->ExtendedErrorMessage.c_str(), pError->ErrorMessage.c_str());
 
 	TRACE("%s", errorMessage.c_str());
 	WriteLogFile(errorMessage);
-	delete pError;
+	// The MySqlError is owned by the connection (GetError() returns a view into
+	// its error list) - deleting it here would double-free it.
+	m_DBProcess.ResetErrors();
 }
 
 LoginServer::~LoginServer() 

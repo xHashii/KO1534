@@ -1,10 +1,10 @@
 #pragma once
  
-class CEventTimes : public OdbcRecordset
+class CEventTimes : public MySqlRecordset
 {
 public:
-	CEventTimes(OdbcConnection * dbConnection, EventTimesArray * pMap) 
-    : OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CEventTimes(MySqlConnection * dbConnection, EventTimesArray * pMap) 
+    : MySqlRecordset(dbConnection), m_pMap(pMap) {}
 	
 	virtual tstring GetTableName() { return _T("EVENT_TIMES"); }
 	virtual tstring GetColumns() { return _T("sIndex, bTime1, bTime2, bTime3, bLvMin, bLvMax, AllDays"); }

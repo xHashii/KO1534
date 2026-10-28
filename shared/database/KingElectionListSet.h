@@ -1,10 +1,10 @@
 #pragma once
 
-class CKingElectionListSet : public OdbcRecordset
+class CKingElectionListSet : public MySqlRecordset
 {
 public:
-	CKingElectionListSet(OdbcConnection * dbConnection, KingSystemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CKingElectionListSet(MySqlConnection * dbConnection, KingSystemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("KING_ELECTION_LIST"); }
 	virtual tstring GetColumns() { return _T("byNation, byType, strName, nKnights, nMoney"); }

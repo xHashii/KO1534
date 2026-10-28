@@ -1,10 +1,10 @@
 #pragma once
 
-class CMonsterSummonListSet : public OdbcRecordset
+class CMonsterSummonListSet : public MySqlRecordset
 {
 public:
-	CMonsterSummonListSet(OdbcConnection * dbConnection, MonsterSummonListArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMonsterSummonListSet(MySqlConnection * dbConnection, MonsterSummonListArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MONSTER_SUMMON_LIST"); }
 	virtual tstring GetColumns() { return _T("sSid, sLevel, sProbability, bType"); }

@@ -1,10 +1,10 @@
 #pragma once
 
-class CMiningTableSet : public OdbcRecordset
+class CMiningTableSet : public MySqlRecordset
 {
 public:
-	CMiningTableSet(OdbcConnection * dbConnection, MiningItemArray * pMap) 
-		: OdbcRecordset(dbConnection), m_pMap(pMap) {}
+	CMiningTableSet(MySqlConnection * dbConnection, MiningItemArray * pMap) 
+		: MySqlRecordset(dbConnection), m_pMap(pMap) {}
 
 	virtual tstring GetTableName() { return _T("MINING_ITEM"); }
 	virtual tstring GetColumns() { return _T("nRate,nItemID,nCount"); }
