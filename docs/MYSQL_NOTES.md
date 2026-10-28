@@ -121,7 +121,7 @@ sections are no longer read — if they are still present they are ignored.
 | full import into MySQL 8.4 by the container entrypoint | **verified on a developer machine**: 105 tables, 65 routines (after fixing the CASE syntax error in 006) |
 | row data imported (002_data.sql.gz) | implied by the above — 003..007 only run after 002 succeeds |
 | non-Docker setup scripts (`setup_database.ps1` / `.sh`) | **not run** |
-| C++ build (VS2022, Win32) | **not verified** — needs Windows |
+| C++ build (VS2022, Win32) | **not verified** — blocked so far on a 32-bit client library; a MySQL 8.0 install provides only the 64-bit `libmysql.lib` |
 | import into MySQL 8.4 (`docker compose up -d` or the setup scripts) | **not verified** — no MySQL/Docker in this environment |
 | startup schema check (`shared/database/SchemaCheck.h`) | type-checks, **not compiled by MSVC** |
 | login / character / world round-trip with the client | **not verified** |

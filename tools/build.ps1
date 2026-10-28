@@ -113,26 +113,42 @@ function Find-MySqlRoot([string] $LibName) {
         if (Test-Root $candidate $LibName) { return $candidate }
     }
 
-    # Nothing matched exactly: say what was found so the fix is obvious.
+    # Nothing matched exactly: say what was found, and what to do about it.
+    $withHeader = @()
     $seen = @()
     foreach ($candidate in $candidates) {
-        if ($candidate -and (Test-Path $candidate)) {
-            $hasHeader = Test-Path (Join-Path $candidate "include\mysql.h")
-            $libs = @()
-            if (Test-Path (Join-Path $candidate "lib")) {
-                $libs = (Get-ChildItem (Join-Path $candidate "lib") -Filter *.lib -ErrorAction SilentlyContinue |
-                         Select-Object -ExpandProperty Name) -join ","
-            }
-            $seen += "  {0}  (mysql.h: {1}, libs: {2})" -f $candidate, $hasHeader, $libs
+        if (-not ($candidate -and (Test-Path $candidate))) { continue }
+
+        $hasHeader = Test-Path (Join-Path $candidate "include\mysql.h")
+        $libs = ""
+        if (Test-Path (Join-Path $candidate "lib")) {
+            $libs = (Get-ChildItem (Join-Path $candidate "lib") -Filter *.lib -ErrorAction SilentlyContinue |
+                     Select-Object -ExpandProperty Name) -join ", "
+        }
+        if (-not $libs) { $libs = "(none)" }
+        $seen += ("  {0}`n      mysql.h: {1}`n      libs:    {2}" -f $candidate, $hasHeader, $libs)
+        if ($hasHeader) { $withHeader += $candidate }
+    }
+
+    $libPath = "lib\" + $LibName
+    $message = "No usable client library found for $Platform (looking for $libPath).`n`nSearched:`n" +
+               ($seen -join "`n")
+
+    # Turn the two usual situations into an exact next command.
+    foreach ($candidate in $withHeader) {
+        $hasMysqlLib = Test-Path (Join-Path $candidate "lib\libmysql.lib")
+        if ($hasMysqlLib -and $LibName -ne "libmysql.lib") {
+            $message += "`n`n$candidate has mysql.h and libmysql.lib but no $LibName.`n" +
+                        "MySQL 8.x installs only ship 64-bit libraries, so a $Platform build cannot link them.`n`n" +
+                        "Option 1 - build 64-bit with what is already installed:`n" +
+                        "    powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Platform x64 -Lib libmysql.lib`n`n" +
+                        "Option 2 - keep $Platform and install a 32-bit client library (MariaDB Connector/C,`n" +
+                        "           win32 package: https://mariadb.com/downloads/connectors/), then re-run this script.`n"
+            break
         }
     }
 
-    throw ("No install with include\mysql.h and lib\$LibName found.`n" +
-           "Searched:`n" + ($seen -join "`n") + "`n`n" +
-           "Install one of these, then re-run:`n" +
-           "  * MariaDB Connector/C (win32 package) for /p:Platform=Win32`n" +
-           "  * MySQL 8.4 (or Connector/C) for /p:Platform=x64`n" +
-           "Or point at an existing install:  tools\build.ps1 -MySqlRoot 'C:\path\to\install'")
+    throw $message.TrimEnd()
 }
 
 $msbuild = Find-MSBuild

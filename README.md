@@ -75,7 +75,7 @@ type 'x86'`). Pick one of these:
 
 * **32-bit client library** (keeps Win32): install *MariaDB Connector/C 3.x*
   (win32 package — same `mysql.h` API, MySQL protocol, supports
-  `caching_sha2_password`), then
+  `caching_sha2_password`). `tools/build.ps1` finds it on its own; by hand it is
   `/p:MYSQL_ROOT="C:\Program Files\MariaDB\MariaDB Connector C 3.4" /p:MySQLClientLib=libmariadb.lib`.
 * **x64 build**: `/p:Platform=x64` against an ordinary MySQL 8.4 install. The
   server and the client are separate processes, so the wire protocol is
